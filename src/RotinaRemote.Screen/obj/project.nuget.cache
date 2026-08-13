@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "K4F0Bs6BNHE=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\alll\\Documents\\Rotinaremote\\src\\RotinaRemote.Screen\\RotinaRemote.Screen.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.win32.systemevents\\8.0.0\\microsoft.win32.systemevents.8.0.0.nupkg.sha512",
+    "C:\\Users\\alll\\.nuget\\packages\\system.drawing.common\\8.0.0\\system.drawing.common.8.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

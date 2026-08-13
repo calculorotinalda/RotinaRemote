@@ -1,0 +1,17 @@
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.csproj.AssemblyReference.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.AssemblyInfoInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.AssemblyInfo.cs
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.csproj.CoreCompileInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Screen.deps.json
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Screen.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Screen.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Core.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Protocol.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Core.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Protocol.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRe.BF2B3709.Up2Date
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\refint\RotinaRemote.Screen.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\RotinaRemote.Screen.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\obj\Release\net8.0-windows\ref\RotinaRemote.Screen.dll

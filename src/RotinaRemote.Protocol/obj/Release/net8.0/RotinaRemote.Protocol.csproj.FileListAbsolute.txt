@@ -1,0 +1,15 @@
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Protocol.deps.json
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Protocol.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Protocol.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Core.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Core.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.csproj.AssemblyReference.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.AssemblyInfoInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.AssemblyInfo.cs
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.csproj.CoreCompileInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRe.87C31907.Up2Date
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\refint\RotinaRemote.Protocol.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\ref\RotinaRemote.Protocol.dll

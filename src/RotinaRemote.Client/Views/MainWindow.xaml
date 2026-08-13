@@ -1,0 +1,166 @@
+<Window x:Class="RotinaRemote.Client.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:RotinaRemote.Client.ViewModels"
+        Title="RotinaRemote — Acesso Remoto Profissional" Height="700" Width="1050"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource PrimaryBackground}"
+        Foreground="{StaticResource TextPrimary}">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Cabeçalho -->
+        <Border Grid.Row="0" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+            <DockPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <TextBlock Text="ROTINA" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" VerticalAlignment="Center"/>
+                    <TextBlock Text="REMOTE" FontSize="20" FontWeight="Light" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
+                    <Border Background="{StaticResource AccentGreen}" CornerRadius="4" Padding="6,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="PROFESSIONAL" FontSize="10" FontWeight="Bold" Foreground="White" />
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                    <Ellipse Width="10" Height="10" Fill="{StaticResource AccentGreen}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ConnectionStatus}" FontSize="13" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Conteúdo Principal com TabControl -->
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
+            <!-- Separador 1: Meu Computador & Ligação -->
+            <TabItem Header="Início / Ligação" FontSize="14" FontWeight="SemiBold">
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Cartão: Este Computador -->
+                    <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="10" Padding="24" Margin="0,0,12,0">
+                        <StackPanel>
+                            <TextBlock Text="Este Computador" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
+                            <TextBlock Text="Partilhe este ID com o técnico para permitir assistência ao seu dispositivo." FontSize="12" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,24" />
+
+                            <TextBlock Text="MEU ID" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4" />
+                            <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+                                <TextBlock Text="{Binding MyDeviceId}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" HorizontalAlignment="Center" />
+                            </Border>
+
+                            <Button Content="Copiar ID" Command="{Binding CopyIdCommand}" HorizontalAlignment="Center" Width="140" Height="36"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Cartão: Computador Remoto -->
+                    <Border Grid.Column="1" Background="{StaticResource SecondaryBackground}" CornerRadius="10" Padding="24" Margin="12,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Computador Remoto" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
+                            <TextBlock Text="Introduza o ID do computador a que pretende aceder remotamente." FontSize="12" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,24" />
+
+                            <TextBlock Text="ID REMOTO" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding TargetDeviceId, UpdateSourceTrigger=PropertyChanged}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Background="{StaticResource CardBackground}" BorderThickness="1" BorderBrush="{StaticResource AccentBlue}" Padding="12,10" Margin="0,0,0,20" HorizontalContentAlignment="Center"/>
+
+                            <Button Content="LIGAR" Command="{Binding ConnectCommand}" Background="{StaticResource AccentGreen}" FontSize="15" Height="42" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Separador 2: Visualizador da Sessão Remota -->
+            <TabItem Header="Sessão Remota" FontSize="14" FontWeight="SemiBold">
+                <Grid Margin="0,16,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="Black" CornerRadius="8" ClipToBounds="True">
+                        <Grid>
+                            <!-- Visualizador de Ecrã Remoto em Tempo Real -->
+                            <Image x:Name="RemoteScreenImage" Source="{Binding RemoteScreenSource}" Stretch="Uniform" MouseMove="OnRemoteScreenMouseMove" MouseLeftButtonDown="OnRemoteScreenMouseDown" MouseRightButtonDown="OnRemoteScreenRightMouseDown" />
+
+                            <!-- Overlay quando sem imagem -->
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Border Background="#CC000000" CornerRadius="8" Padding="16,10" HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="12" Height="12" Fill="{StaticResource AccentRed}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="🔴 ACESSO REMOTO ATIVO" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Toolbar da Sessão -->
+                    <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}" CornerRadius="6" Padding="12,8" Margin="0,8,0,0">
+                        <DockPanel>
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                <TextBlock Text="Transporte: " FontSize="12" Foreground="{StaticResource TextSecondary}" />
+                                <TextBlock Text="{Binding TransportType}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" Margin="0,0,16,0" />
+
+                                <TextBlock Text="Latência: " FontSize="12" Foreground="{StaticResource TextSecondary}" />
+                                <TextBlock Text="{Binding LatencyMs, StringFormat='{}{0} ms'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,0,16,0" />
+
+                                <TextBlock Text="FPS: " FontSize="12" Foreground="{StaticResource TextSecondary}" />
+                                <TextBlock Text="{Binding Fps}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                            </StackPanel>
+
+                            <Button Content="Desconectar" Command="{Binding DisconnectCommand}" Background="{StaticResource AccentRed}" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="12,4"/>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Separador 3: Histórico -->
+            <TabItem Header="Histórico" FontSize="14" FontWeight="SemiBold">
+                <Grid Margin="0,16,0,0">
+                    <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" Background="{StaticResource SecondaryBackground}" Foreground="{StaticResource TextPrimary}" RowBackground="{StaticResource SecondaryBackground}" AlternatingRowBackground="{StaticResource CardBackground}" BorderThickness="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID Remoto" Binding="{Binding RemoteId}" Width="150" />
+                            <DataGridTextColumn Header="Nome do Dispositivo" Binding="{Binding RemoteName}" Width="220" />
+                            <DataGridTextColumn Header="Data / Hora" Binding="{Binding ConnectionTime, StringFormat='dd/MM/yyyy HH:mm'}" Width="180" />
+                            <DataGridTextColumn Header="Duração" Binding="{Binding Duration}" Width="120" />
+                            <DataGridTextColumn Header="Transporte" Binding="{Binding Transport}" Width="120" />
+                            <DataGridTextColumn Header="Estado" Binding="{Binding Status}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- Separador 4: Diagnóstico -->
+            <TabItem Header="Diagnóstico" FontSize="14" FontWeight="SemiBold">
+                <Grid Margin="0,16,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBox Grid.Row="0" Text="{Binding DiagnosticOutput}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="13" Background="{StaticResource SecondaryBackground}" Foreground="{StaticResource TextPrimary}" BorderThickness="1" BorderBrush="{StaticResource CardBackground}" Padding="12" />
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <Button Content="Testar Conexão" Command="{Binding RunDiagnosticsCommand}" Width="140" Height="36"/>
+                        <Button Content="Exportar Relatório" Command="{Binding ExportDiagnosticsCommand}" Width="140" Height="36" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Barrita de Rodapé -->
+        <Border Grid.Row="2" Margin="0,12,0,0">
+            <DockPanel>
+                <TextBlock Text="RotinaRemote v1.0.0 — Todos os direitos reservados" FontSize="11" Foreground="{StaticResource TextSecondary}" DockPanel.Dock="Left" />
+                <TextBlock Text="C# .NET 8 WPF Nativo" FontSize="11" Foreground="{StaticResource TextSecondary}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "RotinaRemote.Protocol/1.0.0": {
+        "dependencies": {
+          "RotinaRemote.Core": "1.0.0"
+        },
+        "runtime": {
+          "RotinaRemote.Protocol.dll": {}
+        }
+      },
+      "RotinaRemote.Core/1.0.0": {
+        "runtime": {
+          "RotinaRemote.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "RotinaRemote.Protocol/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "RotinaRemote.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

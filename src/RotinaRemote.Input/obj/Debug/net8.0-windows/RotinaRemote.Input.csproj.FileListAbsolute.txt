@@ -1,0 +1,17 @@
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Input.deps.json
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Input.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Input.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Core.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Protocol.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Core.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Debug\net8.0-windows\RotinaRemote.Protocol.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.csproj.AssemblyReference.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.AssemblyInfoInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.AssemblyInfo.cs
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.csproj.CoreCompileInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRe.7BCDB7D4.Up2Date
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\refint\RotinaRemote.Input.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\RotinaRemote.Input.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Debug\net8.0-windows\ref\RotinaRemote.Input.dll

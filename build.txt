@@ -1,0 +1,151 @@
+========================================
+RotinaRemote Build
+========================================
+Date:
+2026-08-13 00:53:49
+
+Configuration:
+Release
+
+.NET:
+8.x / 9.x
+
+--- Restore ---
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+
+Restore - SUCCESS
+
+--- Build ---
+  RotinaRemote.Core -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\bin\Release\net8.0\RotinaRemote.Core.dll
+  RotinaRemote.Protocol -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Protocol.dll
+  RotinaRemote.Security -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Security.dll
+  RotinaRemote.Input -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Release\net8.0-windows\RotinaRemote.Input.dll
+  RotinaRemote.Screen -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Screen.dll
+  RotinaRemote.Network -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\bin\Release\net8.0\RotinaRemote.Network.dll
+  RotinaRemote.FileTransfer -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\bin\Release\net8.0\RotinaRemote.FileTransfer.dll
+  RotinaRemote.RelayServer -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.RelayServer\bin\Release\net8.0\RotinaRemote.RelayServer.dll
+  RotinaRemote.SignalingServer -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.SignalingServer\bin\Release\net8.0\RotinaRemote.SignalingServer.dll
+  RotinaRemote.UnitTests -> C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\RotinaRemote.UnitTests.dll
+  RotinaRemote.Client -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\bin\Release\net8.0-windows\RotinaRemote.Client.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.37
+
+Build - SUCCESS
+
+--- Test ---
+Test run for C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\RotinaRemote.UnitTests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 10 ms - RotinaRemote.UnitTests.dll (net8.0)
+
+Test - SUCCESS
+
+--- Publish ---
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  RotinaRemote.Core -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\bin\Release\net8.0\RotinaRemote.Core.dll
+  RotinaRemote.Protocol -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\bin\Release\net8.0\RotinaRemote.Protocol.dll
+  RotinaRemote.Security -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Security.dll
+  RotinaRemote.Input -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\bin\Release\net8.0-windows\RotinaRemote.Input.dll
+  RotinaRemote.Network -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\bin\Release\net8.0\RotinaRemote.Network.dll
+  RotinaRemote.Screen -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Screen\bin\Release\net8.0-windows\RotinaRemote.Screen.dll
+  RotinaRemote.FileTransfer -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\bin\Release\net8.0\RotinaRemote.FileTransfer.dll
+  RotinaRemote.Client -> C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\bin\Release\net8.0-windows\RotinaRemote.Client.dll
+  RotinaRemote.Client -> C:\Users\alll\Documents\Rotinaremote\publish\
+
+Publish - SUCCESS
+
+EXE:
+C:\Users\alll\Documents\Rotinaremote\publish\RotinaRemote.exe
+
+--- Installer ---
+Inno Setup 6 Command-Line Compiler
+Copyright (C) 1997-2025 Jordan Russell. All rights reserved.
+Portions Copyright (C) 2000-2025 Martijn Laan. All rights reserved.
+Portions Copyright (C) 2001-2004 Alex Yackimoff. All rights reserved.
+https://www.innosetup.com
+
+Compiler engine version: Inno Setup 6.5.4
+Non-commercial use only
+
+Preprocessing
+   Reading file: C:\Program Files (x86)\Inno Setup 6\ISPPBuiltins.iss
+Parsing [Setup] section, line 9
+Parsing [Setup] section, line 10
+Parsing [Setup] section, line 11
+Parsing [Setup] section, line 12
+Parsing [Setup] section, line 13
+Parsing [Setup] section, line 14
+Parsing [Setup] section, line 15
+Parsing [Setup] section, line 16
+Parsing [Setup] section, line 17
+Parsing [Setup] section, line 18
+Parsing [Setup] section, line 19
+Parsing [Setup] section, line 20
+Parsing [Setup] section, line 21
+Reading file (WizardImageFile)
+Reading file (WizardSmallImageFile)
+Preparing Setup program executable
+   Verification successful
+   Updating version info (Setup.e32)
+Determining language code pages
+Parsing [Languages] section, line 24
+   Reading file: C:\Program Files (x86)\Inno Setup 6\Languages\Portuguese.isl
+   Messages in script file
+Reading default messages from Default.isl
+Parsing [Languages] section, line 24
+   Reading file: C:\Program Files (x86)\Inno Setup 6\Languages\Portuguese.isl
+Parsing [LangOptions], [Messages], and [CustomMessages] sections
+   Messages in script file
+Reading [Code] section
+Parsing [Tasks] section, line 27
+Parsing [Icons] section, line 33
+Parsing [Icons] section, line 34
+Parsing [Run] section, line 37
+Parsing [Files] section, line 30
+Deleting RotinaRemote-Setup.exe from output directory
+Creating setup files
+   Verification successful
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Client.deps.json
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Client.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Client.exe
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Client.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Client.runtimeconfig.json
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Core.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Core.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.FileTransfer.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.FileTransfer.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Input.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Input.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Network.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Network.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Protocol.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Protocol.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Screen.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Screen.pdb
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Security.dll
+   Compressing: C:\Users\alll\Documents\Rotinaremote\installer\..\publish\RotinaRemote.Security.pdb
+   Compressing Setup program executable
+   Updating version info (Setup.exe)
+   Updating manifest (Setup.exe)
+
+
+Successful compile (0,703 sec). Resulting Setup program filename is:
+C:\Users\alll\Documents\Rotinaremote\installer\Output\RotinaRemote-Setup.exe
+
+Installer - SUCCESS
+
+Installer:
+installer\RotinaRemote-Setup.exe
+
+Result:
+SUCCESS
+

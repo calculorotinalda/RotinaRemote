@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RotinaRemote.Core\RotinaRemote.Core.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Protocol\RotinaRemote.Protocol.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Security\RotinaRemote.Security.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Network\RotinaRemote.Network.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Screen\RotinaRemote.Screen.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Input\RotinaRemote.Input.csproj" />
+    <ProjectReference Include="..\RotinaRemote.FileTransfer\RotinaRemote.FileTransfer.csproj" />
+  </ItemGroup>
+</Project>

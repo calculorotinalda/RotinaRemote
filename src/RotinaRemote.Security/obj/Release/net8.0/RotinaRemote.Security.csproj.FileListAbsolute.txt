@@ -1,0 +1,15 @@
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.csproj.AssemblyReference.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.AssemblyInfoInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.AssemblyInfo.cs
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.csproj.CoreCompileInputs.cache
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Security.deps.json
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Security.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Security.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Core.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\bin\Release\net8.0\RotinaRemote.Core.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRe.9DF09D4A.Up2Date
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\refint\RotinaRemote.Security.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.pdb
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\ref\RotinaRemote.Security.dll
