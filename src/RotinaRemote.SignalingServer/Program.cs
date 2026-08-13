@@ -36,7 +36,9 @@ namespace RotinaRemote.SignalingServer
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-            builder.WebHost.UseUrls("http://0.0.0.0:5000");
+            
+            string port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+            builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
             var app = builder.Build();
             app.UseWebSockets();
@@ -54,9 +56,11 @@ namespace RotinaRemote.SignalingServer
                 }
             });
 
-            app.MapGet("/", () => "RotinaRemote Signaling Server OK - Active Peers: " + _peers.Count);
+            // Handle GET and HEAD requests for Render.com health checks
+            app.MapMethods("/", new[] { "GET", "HEAD" }, () => "RotinaRemote Signaling Server OK - Active Peers: " + _peers.Count);
+            app.MapMethods("/healthz", new[] { "GET", "HEAD" }, () => "OK");
 
-            AppLogger.LogInfo("SignalingServer", "Servidor de Sinalização iniciado na porta 5000.");
+            AppLogger.LogInfo("SignalingServer", $"Servidor de Sinalização iniciado na porta {port}.");
             app.Run();
         }
 

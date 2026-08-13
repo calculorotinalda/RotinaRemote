@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +16,8 @@ namespace RotinaRemote.Network
         private string _serverUrl = string.Empty;
         private string _myDeviceIdRaw = string.Empty;
         private bool _isRegistered;
+
+        private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingConnectRequests = new();
 
         public bool IsConnected => _ws != null && _ws.State == WebSocketState.Open && _isRegistered;
 
@@ -41,7 +44,7 @@ namespace RotinaRemote.Network
                     _ws = new ClientWebSocket();
                     var uri = new Uri(_serverUrl);
 
-                    using var connectCts = new CancellationTokenSource(4000);
+                    using var connectCts = new CancellationTokenSource(5000);
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, connectCts.Token);
 
                     await _ws.ConnectAsync(uri, linkedCts.Token);
@@ -151,10 +154,18 @@ namespace RotinaRemote.Network
                         }
                         else if (type == "ConnectResponse")
                         {
+                            if (_pendingConnectRequests.TryGetValue(source, out var tcs))
+                            {
+                                tcs.TrySetResult(payload);
+                            }
                             ConnectResponseReceived?.Invoke(source, target, payload);
                         }
                         else if (type == "Error")
                         {
+                            if (_pendingConnectRequests.TryGetValue(target, out var tcs))
+                            {
+                                tcs.TrySetResult(string.Empty);
+                            }
                             ErrorReceived?.Invoke(payload);
                         }
                     }
@@ -163,6 +174,35 @@ namespace RotinaRemote.Network
                         AppLogger.LogError("SignalingClient", "Erro ao processar mensagem do servidor de sinalização", ex);
                     }
                 }
+            }
+        }
+
+        public async Task<string?> ResolveViaSignalingAsync(string targetDeviceIdRaw, TimeSpan timeout)
+        {
+            if (!IsConnected) return null;
+
+            string cleanTargetId = targetDeviceIdRaw.Replace(" ", "");
+            var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _pendingConnectRequests[cleanTargetId] = tcs;
+
+            try
+            {
+                await SendMessageAsync("ConnectRequest", cleanTargetId, "RequestConnectInfo");
+
+                using var cts = new CancellationTokenSource(timeout);
+                using (cts.Token.Register(() => tcs.TrySetCanceled()))
+                {
+                    var responsePayload = await tcs.Task;
+                    return string.IsNullOrWhiteSpace(responsePayload) ? null : responsePayload;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                _pendingConnectRequests.TryRemove(cleanTargetId, out _);
             }
         }
 

@@ -28,6 +28,31 @@ namespace RotinaRemote.Network
 
         public ConcurrentDictionary<string, DiscoveredPeerInfo> DiscoveredPeers { get; } = new();
 
+        public string? LocalIP
+        {
+            get
+            {
+                try
+                {
+                    foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                    {
+                        if (ni.OperationalStatus == OperationalStatus.Up && ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                        {
+                            foreach (var ip in ni.GetIPProperties().UnicastAddresses)
+                            {
+                                if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                                {
+                                    return ip.Address.ToString();
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+                return null;
+            }
+        }
+
         public void Start(string myDeviceIdRaw, int tcpPort = 48270)
         {
             _myDeviceIdRaw = myDeviceIdRaw.Replace(" ", "");

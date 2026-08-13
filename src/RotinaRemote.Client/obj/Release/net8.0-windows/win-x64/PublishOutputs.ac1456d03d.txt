@@ -1,4 +1,5 @@
 C:\Users\alll\Documents\Rotinaremote\publish\RotinaRemote.exe
+C:\Users\alll\Documents\Rotinaremote\publish\config.json
 C:\Users\alll\Documents\Rotinaremote\publish\RotinaRemote.dll
 C:\Users\alll\Documents\Rotinaremote\publish\RotinaRemote.deps.json
 C:\Users\alll\Documents\Rotinaremote\publish\RotinaRemote.runtimeconfig.json

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RotinaRemote.UnitTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ecb18b6cf4aa14168d3872961d463f28e3985ecc")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+42a201954383e685b7c641949191ae7a2ca88c37")]
 [assembly: System.Reflection.AssemblyProductAttribute("RotinaRemote.UnitTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RotinaRemote.UnitTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

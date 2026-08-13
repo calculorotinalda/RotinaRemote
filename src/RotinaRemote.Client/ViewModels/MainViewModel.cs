@@ -144,6 +144,7 @@ namespace RotinaRemote.Client.ViewModels
             _lanDiscovery.Start(_identity.RawId, 48270);
 
             _signalingClient = new SignalingClient();
+            _signalingClient.ConnectRequestReceived += OnSignalingConnectRequestReceived;
             _ = _signalingClient.StartAsync(_config.SignalingServerUrl, _identity.RawId);
 
             CopyIdCommand = new RelayCommand(CopyIdToClipboard);
@@ -151,6 +152,19 @@ namespace RotinaRemote.Client.ViewModels
             DisconnectCommand = new RelayCommand(Disconnect);
             RunDiagnosticsCommand = new RelayCommand(RunDiagnostics);
             ExportDiagnosticsCommand = new RelayCommand(ExportDiagnostics);
+        }
+
+        private async void OnSignalingConnectRequestReceived(string sourceId, string targetId, string payload)
+        {
+            try
+            {
+                string hostEndpoint = _lanDiscovery.LocalIP ?? "0.0.0.0";
+                await _signalingClient.SendMessageAsync("ConnectResponse", sourceId, hostEndpoint);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("MainViewModel", "Erro ao responder a pedido de sinalização", ex);
+            }
         }
 
         private void OnIncomingClientConnected(Socket socket)
@@ -333,6 +347,26 @@ namespace RotinaRemote.Client.ViewModels
                 if (resolvedIp != null)
                 {
                     connectIp = resolvedIp;
+                }
+                else if (_signalingClient.IsConnected)
+                {
+                    ConnectionStatus = "A consultar Servidor de Sinalização na Nuvem para " + targetHost + "...";
+                    var signalingPayload = await _signalingClient.ResolveViaSignalingAsync(parsedId.RawValue, TimeSpan.FromSeconds(5));
+
+                    if (!string.IsNullOrWhiteSpace(signalingPayload) && IPAddress.TryParse(signalingPayload, out var resolvedSignalingIp))
+                    {
+                        connectIp = resolvedSignalingIp;
+                    }
+                    else
+                    {
+                        MessageBox.Show($"O dispositivo com ID {targetHost} não está online no Servidor de Sinalização na Nuvem.\n\n" +
+                                        "Certifique-se de que:\n" +
+                                        "1. O RotinaRemote está aberto e em execução no computador remoto.\n" +
+                                        "2. Ambas as máquinas estão conectadas à Internet.",
+                                        "Dispositivo Offline ou Não Encontrado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        ConnectionStatus = "Dispositivo Offline";
+                        return;
+                    }
                 }
                 else
                 {

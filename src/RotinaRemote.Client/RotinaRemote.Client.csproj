@@ -21,4 +21,10 @@
     <ProjectReference Include="..\RotinaRemote.Input\RotinaRemote.Input.csproj" />
     <ProjectReference Include="..\RotinaRemote.FileTransfer\RotinaRemote.FileTransfer.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

@@ -498,3 +498,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\obj\Release\net8.0-
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\obj\Release\net8.0-windows\win-x64\RotinaRemote.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\obj\Release\net8.0-windows\win-x64\RotinaRemote.Client.genruntimeconfig.cache
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\obj\Release\net8.0-windows\win-x64\ref\RotinaRemote.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Client\bin\Release\net8.0-windows\win-x64\config.json
