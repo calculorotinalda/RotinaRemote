@@ -83,11 +83,19 @@ namespace RotinaRemote.Input
         private const uint MOUSEEVENTF_WHEEL = 0x0800;
         private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
 
-        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
         private const uint KEYEVENTF_KEYUP = 0x0002;
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetCursorPos(int X, int Y);
+
+        [DllImport("user32.dll")]
+        private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
         [DllImport("user32.dll")]
         private static extern int GetSystemMetrics(int nIndex);
@@ -103,57 +111,75 @@ namespace RotinaRemote.Input
                 int screenWidth = GetSystemMetrics(SM_CXSCREEN);
                 int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-                int absX = (int)(normalizedX * 65535.0);
-                int absY = (int)(normalizedY * 65535.0);
+                int targetX = (int)(normalizedX * screenWidth);
+                int targetY = (int)(normalizedY * screenHeight);
 
-                uint dwFlags = MOUSEEVENTF_ABSOLUTE;
+                // 1. Position cursor to exact target pixel coordinates
+                SetCursorPos(targetX, targetY);
 
+                if (type == MouseEventType.Move)
+                {
+                    return;
+                }
+
+                // 2. Perform mouse click/wheel actions
+                uint clickFlags = 0;
                 switch (type)
                 {
-                    case MouseEventType.Move:
-                        dwFlags |= MOUSEEVENTF_MOVE;
-                        break;
                     case MouseEventType.LeftDown:
-                        dwFlags |= MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_MOVE;
+                        clickFlags = MOUSEEVENTF_LEFTDOWN;
                         break;
                     case MouseEventType.LeftUp:
-                        dwFlags |= MOUSEEVENTF_LEFTUP | MOUSEEVENTF_MOVE;
+                        clickFlags = MOUSEEVENTF_LEFTUP;
                         break;
                     case MouseEventType.RightDown:
-                        dwFlags |= MOUSEEVENTF_RIGHTDOWN | MOUSEEVENTF_MOVE;
+                        clickFlags = MOUSEEVENTF_RIGHTDOWN;
                         break;
                     case MouseEventType.RightUp:
-                        dwFlags |= MOUSEEVENTF_RIGHTUP | MOUSEEVENTF_MOVE;
+                        clickFlags = MOUSEEVENTF_RIGHTUP;
                         break;
                     case MouseEventType.MiddleDown:
-                        dwFlags |= MOUSEEVENTF_MIDDLEDOWN | MOUSEEVENTF_MOVE;
+                        clickFlags = MOUSEEVENTF_MIDDLEDOWN;
                         break;
                     case MouseEventType.MiddleUp:
-                        dwFlags |= MOUSEEVENTF_MIDDLEUP | MOUSEEVENTF_MOVE;
+                        clickFlags = MOUSEEVENTF_MIDDLEUP;
                         break;
                     case MouseEventType.WheelVertical:
-                        dwFlags |= MOUSEEVENTF_WHEEL;
+                        clickFlags = MOUSEEVENTF_WHEEL;
                         break;
                 }
 
-                var input = new INPUT
+                if (clickFlags != 0)
                 {
-                    type = INPUT_MOUSE,
-                    U = new InputUnion
-                    {
-                        mi = new MOUSEINPUT
-                        {
-                            dx = absX,
-                            dy = absY,
-                            mouseData = (uint)wheelDelta,
-                            dwFlags = dwFlags,
-                            time = 0,
-                            dwExtraInfo = IntPtr.Zero
-                        }
-                    }
-                };
+                    int absX = (int)(normalizedX * 65535.0);
+                    int absY = (int)(normalizedY * 65535.0);
 
-                SendInput(1, new INPUT[] { input }, Marshal.SizeOf(typeof(INPUT)));
+                    var input = new INPUT
+                    {
+                        type = INPUT_MOUSE,
+                        U = new InputUnion
+                        {
+                            mi = new MOUSEINPUT
+                            {
+                                dx = absX,
+                                dy = absY,
+                                mouseData = (uint)wheelDelta,
+                                dwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE,
+                                time = 0,
+                                dwExtraInfo = IntPtr.Zero
+                            }
+                        }
+                    };
+
+                    uint sent = SendInput(1, new INPUT[] { input }, Marshal.SizeOf(typeof(INPUT)));
+                    
+                    if (sent == 0)
+                    {
+                        // Fallback to legacy mouse_event API if SendInput is blocked by OS/UIPI.
+                        // dx=0, dy=0 because SetCursorPos already positioned the cursor at (targetX, targetY).
+                        mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -187,7 +213,12 @@ namespace RotinaRemote.Input
                     }
                 };
 
-                SendInput(1, new INPUT[] { input }, Marshal.SizeOf(typeof(INPUT)));
+                uint sent = SendInput(1, new INPUT[] { input }, Marshal.SizeOf(typeof(INPUT)));
+                if (sent == 0)
+                {
+                    // Fallback to legacy keybd_event API if SendInput is blocked
+                    keybd_event((byte)virtualKeyCode, 0, dwFlags, UIntPtr.Zero);
+                }
             }
             catch (Exception ex)
             {

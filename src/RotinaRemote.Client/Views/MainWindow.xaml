@@ -5,7 +5,9 @@
         Title="RotinaRemote — Acesso Remoto Profissional" Height="700" Width="1050"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource PrimaryBackground}"
-        Foreground="{StaticResource TextPrimary}">
+        Foreground="{StaticResource TextPrimary}"
+        KeyDown="OnWindowKeyDown"
+        KeyUp="OnWindowKeyUp">
 
     <Window.DataContext>
         <vm:MainViewModel />
@@ -87,10 +89,10 @@
                     <Border Grid.Row="0" Background="Black" CornerRadius="8" ClipToBounds="True">
                         <Grid>
                             <!-- Visualizador de Ecrã Remoto em Tempo Real -->
-                            <Image x:Name="RemoteScreenImage" Source="{Binding RemoteScreenSource}" Stretch="Uniform" MouseMove="OnRemoteScreenMouseMove" MouseLeftButtonDown="OnRemoteScreenMouseDown" MouseRightButtonDown="OnRemoteScreenRightMouseDown" />
+                            <Image x:Name="RemoteScreenImage" Source="{Binding RemoteScreenSource}" Stretch="Uniform" Focusable="True" MouseMove="OnRemoteScreenMouseMove" PreviewMouseDown="OnRemoteScreenMouseDown" PreviewMouseUp="OnRemoteScreenMouseUp" MouseWheel="OnRemoteScreenMouseWheel" />
 
                             <!-- Overlay quando sem imagem -->
-                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsConnected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsConnected, Converter={StaticResource BooleanToVisibilityConverter}}" IsHitTestVisible="False">
                                 <Border Background="#CC000000" CornerRadius="8" Padding="16,10" HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <Ellipse Width="12" Height="12" Fill="{StaticResource AccentRed}" Margin="0,0,8,0" VerticalAlignment="Center"/>

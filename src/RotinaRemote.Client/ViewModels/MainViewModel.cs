@@ -11,6 +11,7 @@ using System.Windows.Media.Imaging;
 using RotinaRemote.Core.Configuration;
 using RotinaRemote.Core.Logging;
 using RotinaRemote.Core.Models;
+using RotinaRemote.Input;
 using RotinaRemote.Network;
 using RotinaRemote.Protocol;
 using RotinaRemote.Screen;
@@ -43,6 +44,8 @@ namespace RotinaRemote.Client.ViewModels
         private readonly DeviceIdentity _identity;
         private readonly AppConfig _config;
         private readonly P2PTransportListener _listener;
+        private readonly LanDiscoveryService _lanDiscovery;
+        private readonly SignalingClient _signalingClient;
         private readonly ScreenCapturer _screenCapturer;
         private CancellationTokenSource? _streamingCts;
         private ConnectionSession? _activeSession;
@@ -137,6 +140,12 @@ namespace RotinaRemote.Client.ViewModels
             _listener.ClientConnected += OnIncomingClientConnected;
             _listener.Start(48270);
 
+            _lanDiscovery = new LanDiscoveryService();
+            _lanDiscovery.Start(_identity.RawId, 48270);
+
+            _signalingClient = new SignalingClient();
+            _ = _signalingClient.StartAsync(_config.SignalingServerUrl, _identity.RawId);
+
             CopyIdCommand = new RelayCommand(CopyIdToClipboard);
             ConnectCommand = new RelayCommand(InitiateConnection);
             DisconnectCommand = new RelayCommand(Disconnect);
@@ -153,6 +162,7 @@ namespace RotinaRemote.Client.ViewModels
                 if (dialog.ShowDialog() == true && dialog.IsApproved)
                 {
                     var session = new ConnectionSession(socket);
+                    session.FrameReceived += OnInputFrameReceivedFromClient;
                     ConnectionStatus = "Sessão Ativa com " + remoteIp;
                     StartHostScreenStreaming(session);
                 }
@@ -161,6 +171,57 @@ namespace RotinaRemote.Client.ViewModels
                     try { socket.Close(); } catch { }
                 }
             });
+        }
+
+        private void OnInputFrameReceivedFromClient(PacketFrame frame)
+        {
+            if (frame.Channel == ChannelType.Input && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var inputPayload = MessageSerializer.DeserializeJson<InputPacketPayload>(frame.Payload);
+                    if (inputPayload != null)
+                    {
+                        if (inputPayload.Type == ProtocolInputType.Mouse)
+                        {
+                            InputInjector.InjectMouse(
+                                (MouseEventType)inputPayload.MouseType,
+                                inputPayload.NormX,
+                                inputPayload.NormY,
+                                inputPayload.WheelDelta);
+                        }
+                        else if (inputPayload.Type == ProtocolInputType.Keyboard)
+                        {
+                            InputInjector.InjectKeyboard(
+                                (KeyEventType)inputPayload.KeyType,
+                                inputPayload.VirtualKeyCode);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("MainViewModel", "Erro ao injetar evento de input recebido", ex);
+                }
+            }
+        }
+
+        private uint _inputSeq = 0;
+        public async void SendInputToRemoteHost(InputPacketPayload inputPayload)
+        {
+            if (_activeSession != null && _activeSession.IsConnected && IsConnected)
+            {
+                try
+                {
+                    _inputSeq++;
+                    var bytes = MessageSerializer.SerializeJson(inputPayload);
+                    var packet = new PacketFrame(ChannelType.Input, _inputSeq, bytes);
+                    await _activeSession.SendFrameAsync(packet);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("MainViewModel", "Erro ao enviar input para o computador remoto", ex);
+                }
+            }
         }
 
         private void StartHostScreenStreaming(ConnectionSession session)
@@ -220,7 +281,20 @@ namespace RotinaRemote.Client.ViewModels
 
             if (rawInput.Contains('.') || rawInput.Contains(':') || rawInput.Equals("localhost", StringComparison.OrdinalIgnoreCase))
             {
-                if (IPAddress.TryParse(rawInput, out var parsedIp))
+                int targetPort = 48270;
+                string hostPart = rawInput;
+
+                if (rawInput.Contains(':'))
+                {
+                    var parts = rawInput.Split(':');
+                    hostPart = parts[0];
+                    if (parts.Length > 1 && int.TryParse(parts[1], out int p))
+                    {
+                        targetPort = p;
+                    }
+                }
+
+                if (IPAddress.TryParse(hostPart, out var parsedIp))
                 {
                     connectIp = parsedIp;
                 }
@@ -228,7 +302,7 @@ namespace RotinaRemote.Client.ViewModels
                 {
                     try
                     {
-                        var hostAddresses = await Dns.GetHostAddressesAsync(rawInput);
+                        var hostAddresses = await Dns.GetHostAddressesAsync(hostPart);
                         if (hostAddresses.Length > 0)
                         {
                             connectIp = hostAddresses[0];
@@ -240,8 +314,45 @@ namespace RotinaRemote.Client.ViewModels
             else if (DeviceId.TryParse(rawInput, out var parsedId))
             {
                 targetHost = parsedId.Formatted;
-                // If connecting to same ID or testing P2P locally
-                connectIp = IPAddress.Loopback;
+                
+                // Check if user is trying to connect to their own device ID
+                if (parsedId.RawValue.Equals(_identity.RawId, StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show("Está a tentar conectar ao ID deste próprio computador (Loopback).\n\n" +
+                                    "A ligação local faria o programa capturar e exibir o próprio ecrã (espelho infinito).\n" +
+                                    "Para conectar à Windows Sandbox ou a outro PC, introduza o ID da máquina remota.",
+                                    "Aviso de Ligação", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ConnectionStatus = "Pronto";
+                    return;
+                }
+
+                // Attempt to resolve target device IP via LAN / Windows Sandbox UDP discovery
+                ConnectionStatus = "A procurar " + targetHost + " na rede local / Sandbox...";
+                var resolvedIp = await _lanDiscovery.ResolveDeviceIdAsync(parsedId.RawValue);
+
+                if (resolvedIp != null)
+                {
+                    connectIp = resolvedIp;
+                }
+                else
+                {
+                    bool isSignalingConnected = _signalingClient.IsConnected;
+                    string signalingStatusText = isSignalingConnected
+                        ? "Servidor de Sinalização na Nuvem: Conetado"
+                        : $"Servidor de Sinalização Local ({_config.SignalingServerUrl}): Não conetado a servidor remoto de sinalização";
+
+                    MessageBox.Show($"Não foi possível localizar o dispositivo com ID {targetHost} na rede local ou Windows Sandbox.\n\n" +
+                                    "Para efetuar ligações POR ID FORA DA SUA REDE (via Internet / WAN):\n\n" +
+                                    "1. O RotinaRemote necessita de estar ligado a um Servidor de Sinalização público na Nuvem.\n" +
+                                    $"   (Estado Atual: {signalingStatusText})\n\n" +
+                                    "2. Como configurar para Internet:\n" +
+                                    "   No ficheiro 'config.json' da pasta do programa, altere 'SignalingServerUrl' de 'ws://127.0.0.1:5000/ws' para a URL/IP do seu servidor VPS público na nuvem (ex: ws://vps.meuservidor.com:5000/ws).\n\n" +
+                                    "3. Alternativa imediata sem servidor na Nuvem:\n" +
+                                    "   Introduza diretamente o Endereço IP Público do computador remoto ou IP de rede VPN (ex: Tailscale/ZeroTier/Hamachi) no campo ID REMOTO.",
+                                    "Ligação Externa / Fora da Rede", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ConnectionStatus = "Dispositivo Não Encontrado";
+                    return;
+                }
             }
 
             try

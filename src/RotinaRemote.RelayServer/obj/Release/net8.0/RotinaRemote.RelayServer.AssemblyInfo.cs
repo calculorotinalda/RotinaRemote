@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RotinaRemote.RelayServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+4f57b16d69af374ed63f1786fd96dd80b8a5944b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ecb18b6cf4aa14168d3872961d463f28e3985ecc")]
 [assembly: System.Reflection.AssemblyProductAttribute("RotinaRemote.RelayServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RotinaRemote.RelayServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,3 +1,154 @@
-[2026-08-13 02:27:27.949] [INFO] [App] RotinaRemote Client iniciando...
-[2026-08-13 02:27:28.124] [INFO] [P2PListener] Listener TCP iniciado na porta 48270
-[2026-08-13 02:29:12.195] [INFO] [P2PListener] Cliente conectado de 127.0.0.1:59389
+[2026-08-13 17:37:57.196] [INFO] [App] RotinaRemote Client iniciando...
+[2026-08-13 17:37:57.399] [INFO] [P2PListener] Listener TCP iniciado na porta 48270
+[2026-08-13 17:37:57.411] [INFO] [LanDiscovery] Serviço de Descoberta LAN ativo na porta UDP 48271
+[2026-08-13 17:37:59.384] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:37:59.407] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:37:59.739] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:38:02.408] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:02.422] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:05.423] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:05.438] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:08.438] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:08.453] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:11.453] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:11.472] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:11.794] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:38:14.473] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:14.495] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:17.495] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:17.510] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:20.525] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:20.544] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:23.545] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:23.561] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:23.845] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:38:26.561] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:26.575] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:29.576] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:29.595] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:32.596] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:32.610] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:35.623] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:35.638] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:35.906] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:38:38.663] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:38.665] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:41.663] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:41.829] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:44.682] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:44.703] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:47.706] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:47.720] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:47.947] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:38:50.731] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:50.746] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:53.747] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:53.760] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:56.760] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:56.775] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:59.789] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:38:59.812] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:00.008] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:39:02.812] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:02.830] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:05.831] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:05.846] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:08.856] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:08.870] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:11.885] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:11.899] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:12.078] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:39:14.908] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:14.934] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:17.934] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:17.951] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:20.968] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:21.004] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:24.012] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:24.027] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:24.133] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:39:27.032] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:27.046] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:30.046] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:30.060] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:33.072] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:33.085] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:36.097] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:36.113] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:36.188] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:39:39.116] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:39.132] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:42.134] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:42.149] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:45.149] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:45.163] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:48.207] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:48.209] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:48.238] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:39:51.198] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:51.379] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:54.223] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:54.237] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:57.238] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:39:57.252] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:00.253] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:00.272] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:00.297] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:40:03.291] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:03.314] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:06.315] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:06.328] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:09.333] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:09.346] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:12.320] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:40:12.357] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:12.370] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:15.371] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:15.386] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:18.389] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:18.407] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:21.408] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:21.421] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:24.356] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:40:24.424] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:24.456] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:27.456] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:27.471] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:30.486] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:30.499] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:33.502] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:33.518] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:36.394] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:40:36.520] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:36.552] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:39.552] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:39.566] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:42.566] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:42.581] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:45.589] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:45.602] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:48.431] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:40:48.603] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:48.617] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:51.627] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:51.644] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:54.652] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:54.674] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:57.674] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:40:57.688] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:00.472] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:41:00.699] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:00.720] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:03.720] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:03.734] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:06.743] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:06.750] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:09.884] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:09.885] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:12.528] [WARNING] [SignalingClient] Não foi possível conectar ao Servidor de Sinalização (ws://127.0.0.1:5000/ws): Unable to connect to the remote server
+[2026-08-13 17:41:12.769] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:12.787] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:15.788] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:15.803] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:18.803] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
+[2026-08-13 17:41:18.816] [INFO] [LanDiscovery] Peer descoberto na LAN: ID=352337623, IP=172.25.233.11:48270
