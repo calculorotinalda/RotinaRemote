@@ -13,3 +13,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\refint\RotinaRemote.Security.dll
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\ref\RotinaRemote.Security.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Security\obj\Release\net8.0\RotinaRemote.Security.sourcelink.json

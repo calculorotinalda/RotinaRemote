@@ -17,7 +17,6 @@ C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\ne
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\Microsoft.VisualStudio.TestPlatform.Common.dll
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\Newtonsoft.Json.dll
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\NuGet.Frameworks.dll
-C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\System.Security.Cryptography.ProtectedData.dll
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\xunit.abstractions.dll
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\xunit.assert.dll
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\xunit.core.dll
@@ -106,3 +105,6 @@ C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\obj\Release\ne
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\obj\Release\net8.0-windows\RotinaRemote.UnitTests.pdb
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\obj\Release\net8.0-windows\RotinaRemote.UnitTests.genruntimeconfig.cache
 C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\obj\Release\net8.0-windows\ref\RotinaRemote.UnitTests.dll
+C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\obj\Release\net8.0-windows\RotinaRemote.UnitTests.sourcelink.json
+C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\RotinaRemote.Screen.dll
+C:\Users\alll\Documents\Rotinaremote\tests\RotinaRemote.UnitTests\bin\Release\net8.0-windows\RotinaRemote.Screen.pdb

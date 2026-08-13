@@ -15,3 +15,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Release\net8.0-w
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Release\net8.0-windows\refint\RotinaRemote.Input.dll
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Release\net8.0-windows\RotinaRemote.Input.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Release\net8.0-windows\ref\RotinaRemote.Input.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Input\obj\Release\net8.0-windows\RotinaRemote.Input.sourcelink.json

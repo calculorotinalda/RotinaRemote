@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -11,6 +12,7 @@ using RotinaRemote.Core.Configuration;
 using RotinaRemote.Core.Logging;
 using RotinaRemote.Core.Models;
 using RotinaRemote.Network;
+using RotinaRemote.Protocol;
 using RotinaRemote.Screen;
 using RotinaRemote.Security;
 
@@ -43,6 +45,7 @@ namespace RotinaRemote.Client.ViewModels
         private readonly P2PTransportListener _listener;
         private readonly ScreenCapturer _screenCapturer;
         private CancellationTokenSource? _streamingCts;
+        private ConnectionSession? _activeSession;
 
         private string _myDeviceId = string.Empty;
         private string _targetDeviceId = string.Empty;
@@ -131,6 +134,7 @@ namespace RotinaRemote.Client.ViewModels
 
             _screenCapturer = new ScreenCapturer();
             _listener = new P2PTransportListener();
+            _listener.ClientConnected += OnIncomingClientConnected;
             _listener.Start(48270);
 
             CopyIdCommand = new RelayCommand(CopyIdToClipboard);
@@ -138,6 +142,55 @@ namespace RotinaRemote.Client.ViewModels
             DisconnectCommand = new RelayCommand(Disconnect);
             RunDiagnosticsCommand = new RelayCommand(RunDiagnostics);
             ExportDiagnosticsCommand = new RelayCommand(ExportDiagnostics);
+        }
+
+        private void OnIncomingClientConnected(Socket socket)
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                var remoteIp = ((IPEndPoint?)socket.RemoteEndPoint)?.Address.ToString() ?? "Remoto";
+                var dialog = new Views.PermissionDialogWindow(remoteIp, "PC-REMOTO-" + remoteIp);
+                if (dialog.ShowDialog() == true && dialog.IsApproved)
+                {
+                    var session = new ConnectionSession(socket);
+                    ConnectionStatus = "Sessão Ativa com " + remoteIp;
+                    StartHostScreenStreaming(session);
+                }
+                else
+                {
+                    try { socket.Close(); } catch { }
+                }
+            });
+        }
+
+        private void StartHostScreenStreaming(ConnectionSession session)
+        {
+            _streamingCts?.Cancel();
+            _streamingCts = new CancellationTokenSource();
+            var token = _streamingCts.Token;
+
+            Task.Run(async () =>
+            {
+                uint frameSeq = 0;
+                while (!token.IsCancellationRequested && session.IsConnected)
+                {
+                    try
+                    {
+                        var frame = _screenCapturer.CaptureNextFrame(60L);
+                        if (frame != null && frame.CompressedData.Length > 0)
+                        {
+                            frameSeq++;
+                            var packet = new PacketFrame(ChannelType.Video, frameSeq, frame.CompressedData);
+                            await session.SendFrameAsync(packet, token);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLogger.LogError("MainViewModel", "Erro ao enviar frame de ecrã", ex);
+                    }
+                    await Task.Delay(33, token);
+                }
+            }, token);
         }
 
         private void CopyIdToClipboard()
@@ -153,78 +206,107 @@ namespace RotinaRemote.Client.ViewModels
             }
         }
 
-        private void InitiateConnection()
+        private async void InitiateConnection()
         {
             if (string.IsNullOrWhiteSpace(TargetDeviceId))
             {
-                MessageBox.Show("Por favor introduza o ID do computador remoto.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Por favor introduza o ID ou Endereço IP do computador remoto.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            if (!DeviceId.TryParse(TargetDeviceId, out var parsedId))
+            string rawInput = TargetDeviceId.Trim();
+            string targetHost = rawInput;
+            IPAddress connectIp = IPAddress.Loopback;
+
+            if (rawInput.Contains('.') || rawInput.Contains(':') || rawInput.Equals("localhost", StringComparison.OrdinalIgnoreCase))
             {
-                MessageBox.Show("O ID introduzido é inválido. Deve possuir 9 dígitos.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                if (IPAddress.TryParse(rawInput, out var parsedIp))
+                {
+                    connectIp = parsedIp;
+                }
+                else
+                {
+                    try
+                    {
+                        var hostAddresses = await Dns.GetHostAddressesAsync(rawInput);
+                        if (hostAddresses.Length > 0)
+                        {
+                            connectIp = hostAddresses[0];
+                        }
+                    }
+                    catch { }
+                }
+            }
+            else if (DeviceId.TryParse(rawInput, out var parsedId))
+            {
+                targetHost = parsedId.Formatted;
+                // If connecting to same ID or testing P2P locally
+                connectIp = IPAddress.Loopback;
             }
 
-            // Exibir Diálogo Modal de Permissões de Acesso Remoto
-            var dialog = new Views.PermissionDialogWindow(parsedId.Formatted, "PC-REMOTO-" + parsedId.RawValue);
-            if (dialog.ShowDialog() == true && dialog.IsApproved)
+            try
             {
+                ConnectionStatus = "A ligar a " + targetHost + "...";
+
+                var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                var connectTask = socket.ConnectAsync(new IPEndPoint(connectIp, 48270));
+                var timeoutTask = Task.Delay(3000);
+
+                if (await Task.WhenAny(connectTask, timeoutTask) == timeoutTask)
+                {
+                    socket.Close();
+                    throw new TimeoutException($"Tempo limite excedido ao tentar conectar a {connectIp}:48270.");
+                }
+
+                await connectTask;
+
+                _activeSession = new ConnectionSession(socket);
+                _activeSession.FrameReceived += OnFrameReceivedFromHost;
+                _activeSession.Disconnected += OnSessionDisconnected;
+
                 IsConnected = true;
-                ConnectionStatus = "Ligado a " + parsedId.Formatted;
-                SelectedTabIndex = 1; // Alternar para o Separador 2 (Sessão Remota)
+                ConnectionStatus = "Ligado a " + targetHost;
+                SelectedTabIndex = 1;
 
                 History.Insert(0, new ConnectionHistoryItem
                 {
-                    RemoteId = parsedId.Formatted,
-                    RemoteName = "PC-REMOTO-" + parsedId.RawValue,
+                    RemoteId = targetHost,
+                    RemoteName = "PC-REMOTO-" + targetHost,
                     ConnectionTime = DateTime.Now,
                     Duration = TimeSpan.FromMinutes(1),
                     Transport = Core.Models.TransportType.DirectP2P,
                     Status = "Ativa"
                 });
-
-                // Iniciar motor de captura e streaming de ecrã em tempo real
-                StartLiveStreaming();
             }
-            else
+            catch (Exception ex)
             {
-                ConnectionStatus = "Conexão rejeitada pelo utilizador.";
+                AppLogger.LogError("MainViewModel", "Erro ao conectar via TCP P2P", ex);
+                MessageBox.Show($"Não foi possível estabelecer ligação TCP com {targetHost} ({connectIp}:48270).\n\n" +
+                                $"Se estiver a ligar entre a Windows Sandbox e o Windows Host, introduza o Endereço IP do Host/Sandbox (ex: 192.168.x.x) no campo ID REMOTO.\n\n" +
+                                $"Detalhe: {ex.Message}", "Erro de Ligação", MessageBoxButton.OK, MessageBoxImage.Error);
+                ConnectionStatus = "Falha na Ligação";
                 IsConnected = false;
             }
         }
 
-        private void StartLiveStreaming()
+        private void OnFrameReceivedFromHost(PacketFrame frame)
         {
-            _streamingCts?.Cancel();
-            _streamingCts = new CancellationTokenSource();
-
-            var token = _streamingCts.Token;
-            Task.Run(async () =>
+            if (frame.Channel == ChannelType.Video && frame.Payload.Length > 0)
             {
-                while (!token.IsCancellationRequested && IsConnected)
+                var bitmap = BytesToBitmapImage(frame.Payload);
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    try
-                    {
-                        var frame = _screenCapturer.CaptureNextFrame(65L);
-                        if (frame != null && frame.CompressedData.Length > 0)
-                        {
-                            var bitmap = BytesToBitmapImage(frame.CompressedData);
-                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                RemoteScreenSource = bitmap;
-                            });
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        AppLogger.LogError("MainViewModel", "Erro no streaming de ecrã", ex);
-                    }
+                    RemoteScreenSource = bitmap;
+                });
+            }
+        }
 
-                    await Task.Delay(33, token); // ~30 FPS streaming loop
-                }
-            }, token);
+        private void OnSessionDisconnected()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                Disconnect();
+            });
         }
 
         private BitmapImage BytesToBitmapImage(byte[] bytes)
@@ -242,6 +324,11 @@ namespace RotinaRemote.Client.ViewModels
         private void Disconnect()
         {
             _streamingCts?.Cancel();
+            if (_activeSession != null)
+            {
+                _activeSession.Close();
+                _activeSession = null;
+            }
             IsConnected = false;
             RemoteScreenSource = null;
             ConnectionStatus = "Pronto";

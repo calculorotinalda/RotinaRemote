@@ -1,8 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "MJEq6EYRAwY=",
+  "dgSpecHash": "K3V6kqlMsSM=",
   "success": true,
   "projectFilePath": "C:\\Users\\alll\\Documents\\Rotinaremote\\src\\RotinaRemote.Core\\RotinaRemote.Core.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.21\\microsoft.netcore.app.runtime.win-x64.8.0.21.nupkg.sha512",
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.21\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.21.nupkg.sha512",
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.21\\microsoft.aspnetcore.app.runtime.win-x64.8.0.21.nupkg.sha512"
+  ],
   "logs": []
 }

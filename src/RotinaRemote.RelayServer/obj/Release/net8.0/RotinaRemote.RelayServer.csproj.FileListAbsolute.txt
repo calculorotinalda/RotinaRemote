@@ -18,3 +18,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.RelayServer\obj\Release\ne
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.RelayServer\obj\Release\net8.0\RotinaRemote.RelayServer.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.RelayServer\obj\Release\net8.0\RotinaRemote.RelayServer.genruntimeconfig.cache
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.RelayServer\obj\Release\net8.0\ref\RotinaRemote.RelayServer.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.RelayServer\obj\Release\net8.0\RotinaRemote.RelayServer.sourcelink.json

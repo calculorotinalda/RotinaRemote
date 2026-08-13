@@ -118,7 +118,13 @@ namespace RotinaRemote.Network
                         continue;
                     }
 
-                    int payloadLen = (headerBuffer[15] << 24) | (headerBuffer[16] << 16) | (headerBuffer[17] << 8) | headerBuffer[18];
+                    int payloadLen = BitConverter.ToInt32(headerBuffer, 15);
+                    if (payloadLen <= 0 || payloadLen > 50_000_000)
+                    {
+                        AppLogger.LogWarning("ConnectionSession", $"PayloadLen inválido recebido: {payloadLen}");
+                        break;
+                    }
+
                     var totalFrame = new byte[19 + payloadLen];
                     Array.Copy(headerBuffer, 0, totalFrame, 0, 19);
 

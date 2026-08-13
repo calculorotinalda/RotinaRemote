@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\RotinaRemote.Core\RotinaRemote.Core.csproj" />
     <ProjectReference Include="..\..\src\RotinaRemote.Protocol\RotinaRemote.Protocol.csproj" />
     <ProjectReference Include="..\..\src\RotinaRemote.Security\RotinaRemote.Security.csproj" />
+    <ProjectReference Include="..\..\src\RotinaRemote.Screen\RotinaRemote.Screen.csproj" />
     <ProjectReference Include="..\..\src\RotinaRemote.FileTransfer\RotinaRemote.FileTransfer.csproj" />
   </ItemGroup>
 </Project>

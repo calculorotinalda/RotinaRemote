@@ -13,3 +13,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\refint\RotinaRemote.Protocol.dll
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\ref\RotinaRemote.Protocol.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Protocol\obj\Release\net8.0\RotinaRemote.Protocol.sourcelink.json

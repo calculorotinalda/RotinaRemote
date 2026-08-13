@@ -29,6 +29,20 @@ namespace RotinaRemote.Screen
 
     public class ScreenCapturer : IDisposable
     {
+        private const uint SRCCOPY = 0x00CC0020;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDesktopWindow();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetWindowDC(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
+
         private int _selectedMonitorIndex = 0;
         private uint _frameCounter = 0;
 
@@ -38,12 +52,13 @@ namespace RotinaRemote.Screen
             var screens = System.Windows.Forms.Screen.AllScreens;
             for (int i = 0; i < screens.Length; i++)
             {
+                var screen = screens[i];
                 list.Add(new ScreenInfo
                 {
                     Index = i,
-                    DeviceName = screens[i].DeviceName,
-                    Bounds = screens[i].Bounds,
-                    IsPrimary = screens[i].Primary
+                    DeviceName = screen.DeviceName,
+                    Bounds = screen.Bounds,
+                    IsPrimary = screen.Primary
                 });
             }
             return list;
@@ -66,12 +81,50 @@ namespace RotinaRemote.Screen
 
                 var screen = screens[_selectedMonitorIndex];
                 var bounds = screen.Bounds;
+                if (bounds.Width <= 0 || bounds.Height <= 0)
+                {
+                    bounds = System.Windows.Forms.Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+                }
 
                 using var bitmap = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb);
-                using (var g = Graphics.FromImage(bitmap))
+                bool captured = false;
+
+                // Method 1: Win32 GDI BitBlt directly from Desktop Window DC
+                IntPtr desktopWnd = GetDesktopWindow();
+                IntPtr desktopDc = GetWindowDC(desktopWnd);
+                if (desktopDc != IntPtr.Zero)
                 {
+                    try
+                    {
+                        using var g = Graphics.FromImage(bitmap);
+                        IntPtr destDc = g.GetHdc();
+                        try
+                        {
+                            captured = BitBlt(destDc, 0, 0, bounds.Width, bounds.Height, desktopDc, bounds.X, bounds.Y, SRCCOPY);
+                        }
+                        finally
+                        {
+                            g.ReleaseHdc(destDc);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AppLogger.LogWarning("ScreenCapturer", $"BitBlt falhou, tentando CopyFromScreen: {ex.Message}");
+                    }
+                    finally
+                    {
+                        ReleaseDC(desktopWnd, desktopDc);
+                    }
+                }
+
+                // Method 2: Fallback to System.Drawing CopyFromScreen
+                if (!captured)
+                {
+                    using var g = Graphics.FromImage(bitmap);
                     g.CopyFromScreen(bounds.Location, Point.Empty, bounds.Size, CopyPixelOperation.SourceCopy);
                 }
+
+                bitmap.SetResolution(96f, 96f);
 
                 // Compress as JPEG with adjustable quality
                 using var ms = new MemoryStream();

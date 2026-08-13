@@ -17,3 +17,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\obj\Release\net8.0
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\obj\Release\net8.0\refint\RotinaRemote.Network.dll
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\obj\Release\net8.0\RotinaRemote.Network.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\obj\Release\net8.0\ref\RotinaRemote.Network.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Network\obj\Release\net8.0\RotinaRemote.Network.sourcelink.json

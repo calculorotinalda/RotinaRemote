@@ -17,3 +17,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\obj\Release\n
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\obj\Release\net8.0\refint\RotinaRemote.FileTransfer.dll
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\obj\Release\net8.0\RotinaRemote.FileTransfer.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\obj\Release\net8.0\ref\RotinaRemote.FileTransfer.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.FileTransfer\obj\Release\net8.0\RotinaRemote.FileTransfer.sourcelink.json

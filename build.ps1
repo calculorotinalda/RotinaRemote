@@ -77,8 +77,8 @@ try {
     # 5. Executar testes unitários
     Exec-Step "Test" "dotnet" @("test", "tests/RotinaRemote.UnitTests/RotinaRemote.UnitTests.csproj", "-c", $Configuration, "--no-build")
 
-    # 6. Publicar cliente WPF
-    Exec-Step "Publish" "dotnet" @("publish", "src/RotinaRemote.Client/RotinaRemote.Client.csproj", "-c", $Configuration, "-o", $PublishDir)
+    # 6. Publicar cliente WPF (Self-Contained para Windows x64)
+    Exec-Step "Publish" "dotnet" @("publish", "src/RotinaRemote.Client/RotinaRemote.Client.csproj", "-c", $Configuration, "-r", "win-x64", "--self-contained", "true", "-o", $PublishDir)
     [void]$LogBuilder.AppendLine("EXE:")
     [void]$LogBuilder.AppendLine((Join-Path $PublishDir "RotinaRemote.exe"))
     [void]$LogBuilder.AppendLine("")

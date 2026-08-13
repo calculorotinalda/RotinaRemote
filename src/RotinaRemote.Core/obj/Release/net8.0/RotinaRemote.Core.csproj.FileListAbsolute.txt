@@ -9,3 +9,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\obj\Release\net8.0\Ro
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\obj\Release\net8.0\refint\RotinaRemote.Core.dll
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\obj\Release\net8.0\RotinaRemote.Core.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\obj\Release\net8.0\ref\RotinaRemote.Core.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.Core\obj\Release\net8.0\RotinaRemote.Core.sourcelink.json

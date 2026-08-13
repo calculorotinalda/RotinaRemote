@@ -1,10 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "R/zq/ImWe5Q=",
+  "dgSpecHash": "oq+WNGmcgv4=",
   "success": true,
   "projectFilePath": "C:\\Users\\alll\\Documents\\Rotinaremote\\src\\RotinaRemote.Network\\RotinaRemote.Network.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\alll\\.nuget\\packages\\system.security.cryptography.protecteddata\\8.0.0\\system.security.cryptography.protecteddata.8.0.0.nupkg.sha512"
+    "C:\\Users\\alll\\.nuget\\packages\\system.security.cryptography.protecteddata\\8.0.0\\system.security.cryptography.protecteddata.8.0.0.nupkg.sha512",
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.21\\microsoft.netcore.app.runtime.win-x64.8.0.21.nupkg.sha512",
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.21\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.21.nupkg.sha512",
+    "C:\\Users\\alll\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.21\\microsoft.aspnetcore.app.runtime.win-x64.8.0.21.nupkg.sha512"
   ],
   "logs": []
 }

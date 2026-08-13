@@ -29,3 +29,4 @@ C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.SignalingServer\obj\Releas
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.SignalingServer\obj\Release\net8.0\RotinaRemote.SignalingServer.pdb
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.SignalingServer\obj\Release\net8.0\RotinaRemote.SignalingServer.genruntimeconfig.cache
 C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.SignalingServer\obj\Release\net8.0\ref\RotinaRemote.SignalingServer.dll
+C:\Users\alll\Documents\Rotinaremote\src\RotinaRemote.SignalingServer\obj\Release\net8.0\RotinaRemote.SignalingServer.sourcelink.json
