@@ -154,6 +154,7 @@ namespace RotinaRemote.SignalingServer
                         var errorMsg = new SignalingMessage
                         {
                             Type = "Error",
+                            SourceDeviceId = msg.TargetDeviceId,
                             TargetDeviceId = msg.SourceDeviceId,
                             Payload = "PeerNãoEncontradoOuOffline"
                         };

@@ -515,14 +515,16 @@ namespace RotinaRemote.Client.ViewModels
 
                 // Attempt to resolve target device IP via LAN / Windows Sandbox UDP discovery first
                 ConnectionStatus = "A procurar " + targetHost + " na rede local / Sandbox...";
-                var resolvedIp = await _lanDiscovery.ResolveDeviceIdAsync(parsedId.RawValue);
+                var resolvedIp = await _lanDiscovery.ResolveDeviceIdAsync(parsedId.RawValue, 3500);
 
                 if (resolvedIp != null)
                 {
-                    activeSocket = await TryConnectTcpAsync(resolvedIp, 48270, 2000);
+                    ConnectionStatus = "Peer localizado em " + resolvedIp + ". A ligar...";
+                    activeSocket = await TryConnectTcpAsync(resolvedIp, 48270, 3000);
                     if (activeSocket != null)
                     {
-                        usedTransportName = "Direto (P2P Local)";
+                        usedTransportName = "Direto (P2P Local / Sandbox)";
+                        usedTransportType = TransportTypeEnum.DirectP2P;
                     }
                 }
 
@@ -604,33 +606,10 @@ namespace RotinaRemote.Client.ViewModels
                             }
                         }
                     }
-                    else
-                    {
-                        // Verificação de segunda oportunidade se o Sandbox/LAN respondeu entretanto
-                        if (_lanDiscovery.DiscoveredPeers.TryGetValue(parsedId.RawValue, out var discoveredPeer))
-                        {
-                            ConnectionStatus = "A tentar ligação P2P Local com " + discoveredPeer.IpAddress + "...";
-                            activeSocket = await TryConnectTcpAsync(discoveredPeer.IpAddress, discoveredPeer.Port, 3000);
-                            if (activeSocket != null)
-                            {
-                                usedTransportName = "Direto (P2P Local / Sandbox)";
-                                usedTransportType = TransportTypeEnum.DirectP2P;
-                            }
-                        }
-
-                        if (activeSocket == null)
-                        {
-                            MessageBox.Show($"O dispositivo com ID {targetHost} não está online no Servidor de Sinalização na Nuvem nem foi localizado na rede local.\n\n" +
-                                            "Certifique-se de que:\n" +
-                                            "1. O RotinaRemote está aberto e em execução no computador remoto.\n" +
-                                            "2. Ambas as máquinas estão conectadas à Internet ou à mesma rede/Sandbox.",
-                                            "Dispositivo Offline ou Não Encontrado", MessageBoxButton.OK, MessageBoxImage.Warning);
-                            ConnectionStatus = "Dispositivo Offline";
-                            return;
-                        }
-                    }
                 }
-                else if (activeSocket == null)
+
+                // Verificação de segunda oportunidade se o Sandbox/LAN respondeu entretanto
+                if (activeSocket == null && activeSession == null)
                 {
                     if (_lanDiscovery.DiscoveredPeers.TryGetValue(parsedId.RawValue, out var discoveredPeer))
                     {
@@ -642,21 +621,39 @@ namespace RotinaRemote.Client.ViewModels
                             usedTransportType = TransportTypeEnum.DirectP2P;
                         }
                     }
-                    bool isSignalingConnected = _signalingClient.IsConnected;
-                    string signalingStatusText = isSignalingConnected
-                        ? "Servidor de Sinalização na Nuvem: Conetado"
-                        : $"Servidor de Sinalização Local ({_config.SignalingServerUrl}): Não conetado a servidor remoto de sinalização";
+                }
 
-                    MessageBox.Show($"Não foi possível localizar o dispositivo com ID {targetHost} na rede local ou Windows Sandbox.\n\n" +
-                                    "Para efetuar ligações POR ID FORA DA SUA REDE (via Internet / WAN):\n\n" +
-                                    "1. O RotinaRemote necessita de estar ligado a um Servidor de Sinalização público na Nuvem.\n" +
-                                    $"   (Estado Atual: {signalingStatusText})\n\n" +
-                                    "2. Como configurar para Internet:\n" +
-                                    "   No ficheiro 'config.json' da pasta do programa, altere 'SignalingServerUrl' de 'ws://127.0.0.1:5000/ws' para a URL/IP do seu servidor VPS público na nuvem.\n\n" +
-                                    "3. Alternativa imediata sem servidor na Nuvem:\n" +
-                                    "   Introduza diretamente o Endereço IP Público do computador remoto ou IP de rede VPN (ex: Tailscale/ZeroTier/Hamachi) no campo ID REMOTO.",
-                                    "Ligação Externa / Fora da Rede", MessageBoxButton.OK, MessageBoxImage.Information);
-                    ConnectionStatus = "Dispositivo Não Encontrado";
+                // Fallback automático para instâncias Sandbox / Hyper-V ativas na máquina
+                if (activeSocket == null && activeSession == null)
+                {
+                    var neighbors = LanDiscoveryService.GetNeighborIpAddresses();
+                    foreach (var nip in neighbors)
+                    {
+                        string nipStr = nip.ToString();
+                        if (nipStr.StartsWith("172.19.") && !nipStr.Equals("172.19.0.1"))
+                        {
+                            var probeSocket = await TryConnectTcpAsync(nip, 48270, 1000);
+                            if (probeSocket != null)
+                            {
+                                activeSocket = probeSocket;
+                                usedTransportName = "Direto (Windows Sandbox - " + nip + ")";
+                                usedTransportType = TransportTypeEnum.DirectP2P;
+                                AppLogger.LogInfo("MainViewModel", $"Fallback Sandbox bem-sucedido para {nip}:48270.");
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (activeSocket == null && activeSession == null)
+                {
+                    MessageBox.Show($"O dispositivo com ID {targetHost} não está online no Servidor de Sinalização na Nuvem nem foi localizado na rede local.\n\n" +
+                                    "Certifique-se de que:\n" +
+                                    "1. O RotinaRemote está aberto e em execução no computador remoto.\n" +
+                                    "2. Ambas as máquinas estão conectadas à Internet ou à mesma rede/Sandbox.\n\n" +
+                                    "Dica: Se estiver a utilizar o Windows Sandbox ou rede local, pode também introduzir diretamente o Endereço IP do computador remoto (ex: 172.19.12.201).",
+                                    "Dispositivo Offline ou Não Encontrado", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ConnectionStatus = "Dispositivo Offline";
                     return;
                 }
             }

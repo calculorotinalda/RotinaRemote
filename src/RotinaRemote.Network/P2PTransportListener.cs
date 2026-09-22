@@ -21,6 +21,11 @@ namespace RotinaRemote.Network
         public void Start(int port = 0)
         {
             _listener = new TcpListener(IPAddress.Any, port);
+            try
+            {
+                _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            }
+            catch { }
             _listener.Start();
             LocalPort = ((IPEndPoint)_listener.LocalEndpoint).Port;
             _cts = new CancellationTokenSource();

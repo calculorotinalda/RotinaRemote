@@ -63,6 +63,15 @@ namespace RotinaRemote.Network
             {
                 _udpListener = new UdpClient();
                 _udpListener.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+                // Disable WSAECONNRESET (10054) on Windows so ICMP unreachable doesn't fail ReceiveAsync
+                try
+                {
+                    const int SIO_UDP_CONNRESET = -1744830452;
+                    _udpListener.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+                }
+                catch { }
+
                 _udpListener.Client.Bind(new IPEndPoint(IPAddress.Any, DiscoveryPort));
                 _udpListener.EnableBroadcast = true;
 
@@ -105,14 +114,15 @@ namespace RotinaRemote.Network
             if (parts.Length < 3) return;
 
             string header = parts[0];
-            string senderDeviceId = parts[1].Trim();
 
-            // Ignore self
-            if (senderDeviceId.Equals(_myDeviceIdRaw, StringComparison.OrdinalIgnoreCase)) return;
-
-            if (int.TryParse(parts[2], out int targetPort))
+            if (header == "RR_BEACON" || header == "RR_RESPONSE")
             {
-                if (header == "RR_BEACON" || header == "RR_RESPONSE")
+                string senderDeviceId = parts[1].Trim();
+
+                // Ignore self
+                if (senderDeviceId.Equals(_myDeviceIdRaw, StringComparison.OrdinalIgnoreCase)) return;
+
+                if (int.TryParse(parts[2], out int targetPort))
                 {
                     var peer = new DiscoveredPeerInfo
                     {
@@ -125,14 +135,15 @@ namespace RotinaRemote.Network
                     DiscoveredPeers[senderDeviceId] = peer;
                     AppLogger.LogInfo("LanDiscovery", $"Peer descoberto na LAN: ID={senderDeviceId}, IP={senderEndPoint.Address}:{targetPort}");
                 }
-                else if (header == "RR_QUERY")
+            }
+            else if (header == "RR_QUERY")
+            {
+                string queriedTargetId = parts[1].Trim();
+                // Respond if someone is asking for THIS device!
+                if (queriedTargetId.Equals(_myDeviceIdRaw, StringComparison.OrdinalIgnoreCase))
                 {
-                    string queriedId = parts[1].Trim();
-                    if (queriedId.Equals(_myDeviceIdRaw, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Reply to sender that we are here!
-                        SendBeaconTo(senderEndPoint);
-                    }
+                    SendBeaconTo(senderEndPoint);
+                    AppLogger.LogInfo("LanDiscovery", $"Respondido a RR_QUERY de {senderEndPoint} para ID {_myDeviceIdRaw}");
                 }
             }
         }
@@ -153,6 +164,43 @@ namespace RotinaRemote.Network
             }
         }
 
+        public static System.Collections.Generic.List<IPAddress> GetNeighborIpAddresses()
+        {
+            var list = new System.Collections.Generic.List<IPAddress>();
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo("arp", "-a")
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc != null)
+                {
+                    string output = proc.StandardOutput.ReadToEnd();
+                    proc.WaitForExit(1000);
+                    foreach (var line in output.Split('\n'))
+                    {
+                        var parts = line.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 2 && IPAddress.TryParse(parts[0], out var ip))
+                        {
+                            if (ip.AddressFamily == AddressFamily.InterNetwork)
+                            {
+                                string ipStr = ip.ToString();
+                                if (!ipStr.StartsWith("224.") && !ipStr.StartsWith("239.") && !ipStr.EndsWith(".255"))
+                                {
+                                    list.Add(ip);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return list;
+        }
+
         private void SendToAllBroadcasts(byte[] data)
         {
             if (_udpListener == null) return;
@@ -162,7 +210,7 @@ namespace RotinaRemote.Network
                 // 1. Global broadcast
                 _udpListener.Send(data, data.Length, new IPEndPoint(IPAddress.Broadcast, DiscoveryPort));
 
-                // 2. Broadcast to all active network interface broadcast addresses (including Hyper-V / Windows Sandbox virtual switch)
+                // 2. Broadcast to all active network interface broadcast addresses
                 foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
                     if (ni.OperationalStatus != OperationalStatus.Up || ni.NetworkInterfaceType == NetworkInterfaceType.Loopback)
@@ -188,10 +236,21 @@ namespace RotinaRemote.Network
                         }
                     }
                 }
+
+                // 3. Unicast to all active ARP neighbors (crucial for Windows Sandbox / Hyper-V switch)
+                var neighbors = GetNeighborIpAddresses();
+                foreach (var neighborIp in neighbors)
+                {
+                    try
+                    {
+                        _udpListener.Send(data, data.Length, new IPEndPoint(neighborIp, DiscoveryPort));
+                    }
+                    catch { }
+                }
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("LanDiscovery", "Erro ao transmitir pacote UDP de broadcast", ex);
+                AppLogger.LogError("LanDiscovery", "Erro ao transmitir pacote UDP de broadcast/unicast", ex);
             }
         }
 
@@ -217,7 +276,7 @@ namespace RotinaRemote.Network
             catch { }
         }
 
-        public async Task<IPAddress?> ResolveDeviceIdAsync(string targetDeviceIdRaw, int timeoutMs = 1500)
+        public async Task<IPAddress?> ResolveDeviceIdAsync(string targetDeviceIdRaw, int timeoutMs = 3500)
         {
             string cleanId = targetDeviceIdRaw.Replace(" ", "");
 
@@ -230,7 +289,7 @@ namespace RotinaRemote.Network
                 }
             }
 
-            // 2. Query over all broadcast interfaces if not in cache or stale
+            // 2. Query over all broadcast & unicast neighbor interfaces
             if (_udpListener != null)
             {
                 try
@@ -251,6 +310,18 @@ namespace RotinaRemote.Network
                     if (DiscoveredPeers.TryGetValue(cleanId, out peer))
                     {
                         return peer.IpAddress;
+                    }
+
+                    // Re-transmit query halfway through timeout
+                    if (waited == 1500)
+                    {
+                        try
+                        {
+                            string payload = $"RR_QUERY|{cleanId}|{_myTcpPort}";
+                            byte[] data = Encoding.UTF8.GetBytes(payload);
+                            SendToAllBroadcasts(data);
+                        }
+                        catch { }
                     }
                 }
             }

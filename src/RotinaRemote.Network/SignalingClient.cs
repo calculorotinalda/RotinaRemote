@@ -162,9 +162,20 @@ namespace RotinaRemote.Network
                         }
                         else if (type == "Error")
                         {
-                            if (_pendingConnectRequests.TryGetValue(target, out var tcs))
+                            if (!string.IsNullOrEmpty(source) && _pendingConnectRequests.TryGetValue(source, out var tcsSource))
                             {
-                                tcs.TrySetResult(string.Empty);
+                                tcsSource.TrySetResult(string.Empty);
+                            }
+                            else if (!string.IsNullOrEmpty(target) && _pendingConnectRequests.TryGetValue(target, out var tcsTarget))
+                            {
+                                tcsTarget.TrySetResult(string.Empty);
+                            }
+                            else
+                            {
+                                foreach (var kvp in _pendingConnectRequests)
+                                {
+                                    kvp.Value.TrySetResult(string.Empty);
+                                }
                             }
                             ErrorReceived?.Invoke(payload);
                         }

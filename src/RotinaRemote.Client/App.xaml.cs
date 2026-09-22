@@ -28,6 +28,10 @@ namespace RotinaRemote.Client
                 AppLogger.LogCritical("App", "DispatcherUnhandledException capturada", args.Exception);
                 args.Handled = true;
                 MessageBox.Show($"Ocorreu um erro inesperado:\n{args.Exception.Message}\n\nDetalhes guardados em log.txt.", "RotinaRemote Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (Current.MainWindow == null || !Current.MainWindow.IsLoaded)
+                {
+                    Current.Shutdown();
+                }
             };
         }
     }
