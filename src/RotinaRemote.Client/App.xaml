@@ -1,0 +1,36 @@
+<Application x:Class="RotinaRemote.Client.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+        <!-- Estilos e Recursos do Tema Premium -->
+        <SolidColorBrush x:Key="PrimaryBackground" Color="#0F172A" />
+        <SolidColorBrush x:Key="SecondaryBackground" Color="#1E293B" />
+        <SolidColorBrush x:Key="CardBackground" Color="#334155" />
+        <SolidColorBrush x:Key="AccentBlue" Color="#3B82F6" />
+        <SolidColorBrush x:Key="AccentGreen" Color="#10B981" />
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444" />
+        <SolidColorBrush x:Key="TextPrimary" Color="#F8FAFC" />
+        <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8" />
+
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBlue}" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Margin" Value="4" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Application.Resources>
+</Application>

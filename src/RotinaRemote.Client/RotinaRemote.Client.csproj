@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>RotinaRemote</AssemblyName>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RotinaRemote.Core\RotinaRemote.Core.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Protocol\RotinaRemote.Protocol.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Security\RotinaRemote.Security.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Network\RotinaRemote.Network.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Screen\RotinaRemote.Screen.csproj" />
+    <ProjectReference Include="..\RotinaRemote.Input\RotinaRemote.Input.csproj" />
+    <ProjectReference Include="..\RotinaRemote.FileTransfer\RotinaRemote.FileTransfer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

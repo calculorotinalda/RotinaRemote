@@ -1,0 +1,12 @@
+{
+  "SignalingServerUrl": "wss://rotinaremote.onrender.com/ws",
+  "RelayServerUrl": "wss://rotinaremote.onrender.com/relay",
+  "StunServerHost": "stun.l.google.com",
+  "StunServerPort": 19302,
+  "KeepAliveIntervalMs": 3000,
+  "TargetFps": 60,
+  "Theme": "Dark",
+  "StartWithWindows": false,
+  "MinimizeToTray": true,
+  "EnableClipboardSync": true
+}

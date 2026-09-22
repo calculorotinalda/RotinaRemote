@@ -1,0 +1,29 @@
+# Build, Publish, Release and Installer outputs
+publish/
+[Rr]elease/
+[Rr]eleases/
+installer/
+[Bb]in/
+[Oo]bj/
+**/[Bb]in/
+**/[Oo]bj/
+**/singlefilehost.exe
+*.sourcelink.json
+
+# Executables, binaries and archives
+*.exe
+*.dll
+*.pdb
+*.nupkg
+*.zip
+
+# Local and temporary logs/identity
+*.log
+build.txt
+publish/identity.dat
+tests/**/log.txt
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.suo
