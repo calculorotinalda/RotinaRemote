@@ -79,6 +79,7 @@ namespace RotinaRemote.SignalingServer
             // Handle GET and HEAD requests for Render.com health checks
             app.MapMethods("/", new[] { "GET", "HEAD" }, () => "RotinaRemote Signaling Server OK - Active Peers: " + _peers.Count);
             app.MapMethods("/healthz", new[] { "GET", "HEAD" }, () => "OK");
+            app.MapGet("/favicon.ico", () => Results.NoContent());
 
             AppLogger.LogInfo("SignalingServer", $"Servidor de Sinalização iniciado na porta {port}.");
             app.Run();
@@ -110,6 +111,14 @@ namespace RotinaRemote.SignalingServer
                         }
                     }
                 }
+            }
+            catch (WebSocketException)
+            {
+                // Desconexão normal ou fecho abrupto de cliente (sem handshake completo)
+            }
+            catch (OperationCanceledException)
+            {
+                // Operação cancelada normalmente
             }
             catch (Exception ex)
             {

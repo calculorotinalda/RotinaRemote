@@ -124,6 +124,22 @@ namespace RotinaRemote.Input
                 normalizedX = Math.Clamp(normalizedX, 0.0, 1.0);
                 normalizedY = Math.Clamp(normalizedY, 0.0, 1.0);
 
+                int vLeft = GetSystemMetrics(SM_XVIRTUALSCREEN);
+                int vTop = GetSystemMetrics(SM_YVIRTUALSCREEN);
+                int vWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+                int vHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+                if (vWidth <= 0 || vHeight <= 0)
+                {
+                    vLeft = 0;
+                    vTop = 0;
+                    vWidth = GetSystemMetrics(SM_CXSCREEN);
+                    vHeight = GetSystemMetrics(SM_CYSCREEN);
+                }
+
+                if (vWidth <= 0) vWidth = 1920;
+                if (vHeight <= 0) vHeight = 1080;
+
                 int targetX;
                 int targetY;
 
@@ -134,33 +150,23 @@ namespace RotinaRemote.Input
                 }
                 else
                 {
-                    int vLeft = GetSystemMetrics(SM_XVIRTUALSCREEN);
-                    int vTop = GetSystemMetrics(SM_YVIRTUALSCREEN);
-                    int vWidth = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-                    int vHeight = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-
-                    if (vWidth <= 0 || vHeight <= 0)
-                    {
-                        vLeft = 0;
-                        vTop = 0;
-                        vWidth = GetSystemMetrics(SM_CXSCREEN);
-                        vHeight = GetSystemMetrics(SM_CYSCREEN);
-                    }
-
-                    if (vWidth <= 0) vWidth = 1920;
-                    if (vHeight <= 0) vHeight = 1080;
-
                     targetX = vLeft + (int)Math.Round(normalizedX * (vWidth - 1));
                     targetY = vTop + (int)Math.Round(normalizedY * (vHeight - 1));
                 }
 
-                // 1. Move the cursor directly to the target pixel coordinate
+                // Calculate absolute coordinates (0 to 65535) required by Windows Sandbox / Hyper-V synthetic mouse
+                int absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
+                int absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
+                absX = Math.Clamp(absX, 0, 65535);
+                absY = Math.Clamp(absY, 0, 65535);
+
+                // 1. Move cursor visually
                 SetCursorPos(targetX, targetY);
 
                 if (type == MouseEventType.Move)
                 {
-                    // Dispatch WM_MOUSEMOVE at the current cursor position (dx=0, dy=0 relative)
-                    mouse_event(MOUSEEVENTF_MOVE, 0, 0, 0, UIntPtr.Zero);
+                    // Dispatch WM_MOUSEMOVE with absolute coordinates to update raw input queue
+                    mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
                     return;
                 }
 
@@ -193,33 +199,26 @@ namespace RotinaRemote.Input
 
                 if (clickFlags != 0)
                 {
-                    // Use SendInput with dx=0, dy=0 to trigger click at the exact position SetCursorPos set
-                    var input = new INPUT
-                    {
-                        type = INPUT_MOUSE,
-                        U = new InputUnion
-                        {
-                            mi = new MOUSEINPUT
-                            {
-                                dx = 0,
-                                dy = 0,
-                                mouseData = (uint)wheelDelta,
-                                dwFlags = clickFlags,
-                                time = 0,
-                                dwExtraInfo = IntPtr.Zero
-                            }
-                        }
-                    };
+                    uint dwFlags = clickFlags;
+                    uint inputX = (uint)absX;
+                    uint inputY = (uint)absY;
 
-                    uint sent = SendInput(1, new INPUT[] { input }, Marshal.SizeOf(typeof(INPUT)));
-
-                    // If SendInput failed or was blocked by UIPI, fallback to mouse_event with dx=0, dy=0
-                    if (sent == 0)
+                    if (clickFlags == MOUSEEVENTF_WHEEL)
                     {
-                        mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+                        dwFlags = MOUSEEVENTF_WHEEL;
+                        inputX = 0;
+                        inputY = 0;
+                    }
+                    else
+                    {
+                        dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
                     }
 
-                    AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [SendInput: {sent}]");
+                    // Direct execution via mouse_event with absolute coordinates:
+                    // Bypasses Windows UIPI restrictions, works in Windows Sandbox / Hyper-V and avoids duplicate clicks
+                    mouse_event(dwFlags, inputX, inputY, (uint)wheelDelta, UIntPtr.Zero);
+
+                    AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}]");
                 }
             }
             catch (Exception ex)
