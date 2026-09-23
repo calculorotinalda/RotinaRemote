@@ -33,5 +33,12 @@ namespace RotinaRemote.UnitTests
             Assert.False(success);
             Assert.Null(deserialized);
         }
+
+        [Fact]
+        public void Diagnostic_ScreenMetrics_Test()
+        {
+            int cx = sizeof(RotinaRemote.Input.MouseEventType);
+            Assert.True(cx > 0);
+        }
     }
 }

@@ -86,6 +86,28 @@ namespace RotinaRemote.Input
 
         private const uint KEYEVENTF_KEYUP = 0x0002;
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+            public POINT(int x, int y) { X = x; Y = y; }
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr WindowFromPoint(POINT Point);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+        private const uint GA_ROOT = 2;
+
+        private static int _lastClickX = -1;
+        private static int _lastClickY = -1;
+        private static DateTime _lastClickTime = DateTime.MinValue;
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
@@ -137,8 +159,8 @@ namespace RotinaRemote.Input
                     vHeight = GetSystemMetrics(SM_CYSCREEN);
                 }
 
-                if (vWidth <= 0) vWidth = 1920;
-                if (vHeight <= 0) vHeight = 1080;
+                if (vWidth <= 0) vWidth = screenWidth > 0 ? screenWidth : 1920;
+                if (vHeight <= 0) vHeight = screenHeight > 0 ? screenHeight : 1080;
 
                 int targetX;
                 int targetY;
@@ -154,18 +176,48 @@ namespace RotinaRemote.Input
                     targetY = vTop + (int)Math.Round(normalizedY * (vHeight - 1));
                 }
 
-                // Calculate absolute coordinates (0 to 65535) required by Windows Sandbox / Hyper-V synthetic mouse
+                // Deteção e estabilização de duplo-clique:
+                // Se um novo clique ocorrer dentro de 600ms e a menos de 10 pixels do anterior,
+                // fixa a coordenada idêntica para o Windows registrar WM_LBUTTONDBLCLK com 100% de fiabilidade.
+                var now = DateTime.UtcNow;
+                if (type == MouseEventType.LeftDown)
+                {
+                    if ((now - _lastClickTime).TotalMilliseconds <= 600 &&
+                        _lastClickX >= 0 &&
+                        Math.Abs(targetX - _lastClickX) <= 10 &&
+                        Math.Abs(targetY - _lastClickY) <= 10)
+                    {
+                        targetX = _lastClickX;
+                        targetY = _lastClickY;
+                    }
+                    else
+                    {
+                        _lastClickX = targetX;
+                        _lastClickY = targetY;
+                    }
+                    _lastClickTime = now;
+                }
+                else if (type == MouseEventType.LeftUp && (now - _lastClickTime).TotalMilliseconds <= 600 && _lastClickX >= 0)
+                {
+                    if (Math.Abs(targetX - _lastClickX) <= 10 && Math.Abs(targetY - _lastClickY) <= 10)
+                    {
+                        targetX = _lastClickX;
+                        targetY = _lastClickY;
+                    }
+                }
+
+                // Normalização absoluta (0 a 65535) para o desktop virtual do Windows
                 int absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
                 int absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
                 absX = Math.Clamp(absX, 0, 65535);
                 absY = Math.Clamp(absY, 0, 65535);
 
-                // 1. Move cursor visually
+                // 1. Move cursor visual
                 SetCursorPos(targetX, targetY);
 
                 if (type == MouseEventType.Move)
                 {
-                    // Dispatch WM_MOUSEMOVE with absolute coordinates to update raw input queue
+                    // Envia movimento na fila de hardware
                     var moveInput = new INPUT
                     {
                         type = INPUT_MOUSE,
@@ -191,7 +243,7 @@ namespace RotinaRemote.Input
                     return;
                 }
 
-                // 2. Perform mouse click/wheel actions
+                // 2. Ações de clique / scroll
                 uint clickFlags = 0;
                 switch (type)
                 {
@@ -246,11 +298,29 @@ namespace RotinaRemote.Input
                     }
                     else
                     {
-                        // To guarantee the click registers at the exact target location across all Windows environments
-                        // (including Windows Sandbox, Hyper-V synthetic mouse, RDP, and multimonitor setups):
-                        // 1) The click event MUST have MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK along with clickFlags.
-                        //    Without MOUSEEVENTF_MOVE, the OS discards dx and dy and clicks at the driver's stale position.
-                        // 2) We send a batch: Move input to (absX, absY) followed by the button event at (absX, absY).
+                        // Ativação suave da janela sob o cursor
+                        if (type == MouseEventType.LeftDown || type == MouseEventType.RightDown)
+                        {
+                            try
+                            {
+                                IntPtr targetHwnd = WindowFromPoint(new POINT(targetX, targetY));
+                                if (targetHwnd != IntPtr.Zero)
+                                {
+                                    IntPtr rootHwnd = GetAncestor(targetHwnd, GA_ROOT);
+                                    if (rootHwnd != IntPtr.Zero)
+                                    {
+                                        SetForegroundWindow(rootHwnd);
+                                    }
+                                }
+                            }
+                            catch { }
+                        }
+
+                        // REGRA CRÍTICA PARA CLIQUE E DUPLO-CLIQUE NO WINDOWS:
+                        // inputs[0] move o hardware para as coordenadas alvo.
+                        // inputs[1] despacha o clique estacionário (clickFlags) SEM a flag MOUSEEVENTF_MOVE.
+                        // Se inputs[1] contivesse MOUSEEVENTF_MOVE, o Windows trataria como arrasto (drag)
+                        // cancelando o evento de clique e o duplo-clique!
                         var inputs = new INPUT[2];
                         inputs[0] = new INPUT
                         {
@@ -275,10 +345,10 @@ namespace RotinaRemote.Input
                             {
                                 mi = new MOUSEINPUT
                                 {
-                                    dx = absX,
-                                    dy = absY,
+                                    dx = 0,
+                                    dy = 0,
                                     mouseData = 0,
-                                    dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | clickFlags,
+                                    dwFlags = clickFlags,
                                     time = 0,
                                     dwExtraInfo = IntPtr.Zero
                                 }
@@ -288,9 +358,9 @@ namespace RotinaRemote.Input
                         uint sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
                         if (sent < inputs.Length)
                         {
-                            // Fallback to mouse_event with absolute move + click flags
+                            // Fallback via mouse_event caso SendInput seja restringido
                             mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
-                            mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | clickFlags, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                            mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
                         }
 
                         AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}, SendInput: {sent}]");

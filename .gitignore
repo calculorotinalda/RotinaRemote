@@ -1,8 +1,9 @@
 # Build, Publish, Release and Installer outputs
 publish/
+publish-singlefile/
 [Rr]elease/
 [Rr]eleases/
-installer/
+installer/Output/
 [Bb]in/
 [Oo]bj/
 **/[Bb]in/

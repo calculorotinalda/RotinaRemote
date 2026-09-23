@@ -62,34 +62,68 @@ try {
     $dotnetVersion = & dotnet --version
     Write-Host "     .NET SDK Detectado: $dotnetVersion" -ForegroundColor Green
 
-    # 2. Limpar builds anteriores
-    Write-Host "[2/7] Limpando diretórios de output..." -ForegroundColor Yellow
+    # 2. Gerar e sincronizar ícones a partir de icon.png
+    Write-Host "[2/8] Sincronizando ícones a partir de icon.png..." -ForegroundColor Yellow
+    $PngIcon = Join-Path $RootDir "icon.png"
+    $IcoFile = Join-Path $RootDir "icon.ico"
+    $ClientIco = Join-Path $RootDir "src\RotinaRemote.Client\icon.ico"
+    if (Test-Path $PngIcon) {
+        $ConvertScript = Join-Path $RootDir "scripts\convert-icon.ps1"
+        if (Test-Path $ConvertScript) {
+            & powershell -ExecutionPolicy Bypass -File $ConvertScript -PngPath $PngIcon -IcoPath $IcoFile
+        }
+        if (Test-Path $IcoFile) {
+            Copy-Item -Path $IcoFile -Destination $ClientIco -Force
+            Write-Host "     Ícone icon.ico gerado e sincronizado com sucesso!" -ForegroundColor Green
+        }
+    }
+
+    # 3. Limpar builds anteriores
+    Write-Host "[3/8] Limpando diretórios de output..." -ForegroundColor Yellow
+    $SingleFileDir = Join-Path $RootDir "publish-singlefile"
     if (Test-Path $PublishDir) { Remove-Item -Path $PublishDir -Recurse -Force }
+    if (Test-Path $SingleFileDir) { Remove-Item -Path $SingleFileDir -Recurse -Force }
     if (Test-Path $ReleasesDir) { Remove-Item -Path $ReleasesDir -Recurse -Force }
     New-Item -ItemType Directory -Path $PublishDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $SingleFileDir -Force | Out-Null
     New-Item -ItemType Directory -Path $ReleasesDir -Force | Out-Null
 
-    # 3. Restaurar dependências
+    # 4. Restaurar dependências
     Exec-Step "Restore" "dotnet" @("restore", "RotinaRemote.sln")
 
-    # 4. Compilar solução
+    # 5. Compilar solução
     Exec-Step "Build" "dotnet" @("build", "RotinaRemote.sln", "-c", $Configuration, "--no-restore")
 
-    # 5. Executar testes unitários
+    # 6. Executar testes unitários
     Exec-Step "Test" "dotnet" @("test", "tests/RotinaRemote.UnitTests/RotinaRemote.UnitTests.csproj", "-c", $Configuration, "--no-build")
 
-    # 6. Publicar cliente WPF (Self-Contained para Windows x64)
+    # 7. Publicar cliente WPF (Self-Contained para Windows x64)
     Exec-Step "Publish" "dotnet" @("publish", "src/RotinaRemote.Client/RotinaRemote.Client.csproj", "-c", $Configuration, "-r", "win-x64", "--self-contained", "true", "-o", $PublishDir)
     [void]$LogBuilder.AppendLine("EXE:")
     [void]$LogBuilder.AppendLine((Join-Path $PublishDir "RotinaRemote.exe"))
     [void]$LogBuilder.AppendLine("")
 
+    # 7b. Publicar executável portátil Single-File (.exe único independente)
+    Write-Host "==> Compilando versão portátil Single-File..." -ForegroundColor Yellow
+    Exec-Step "PublishSingleFile" "dotnet" @("publish", "src/RotinaRemote.Client/RotinaRemote.Client.csproj", "-c", $Configuration, "-r", "win-x64", "--self-contained", "true", "-p:PublishSingleFile=true", "-p:IncludeNativeLibrariesForSelfExtract=true", "-p:EnableCompressionInSingleFile=true", "-o", $SingleFileDir)
+    
+    $SingleSource = Join-Path $SingleFileDir "RotinaRemote.exe"
+    $SingleDest = Join-Path $ReleasesDir "RotinaRemote-SingleFile.exe"
+    $SinglePortableDest = Join-Path $ReleasesDir "RotinaRemote-Portable.exe"
+    if (Test-Path $SingleSource) {
+        Copy-Item -Path $SingleSource -Destination $SingleDest -Force
+        Copy-Item -Path $SingleSource -Destination $SinglePortableDest -Force
+        Write-Host "     Executável Portable Single-File criado em: $SinglePortableDest" -ForegroundColor Green
+        [void]$LogBuilder.AppendLine("SingleFile EXE:")
+        [void]$LogBuilder.AppendLine($SinglePortableDest)
+    }
+
     # Criar versão portátil (.zip)
     $ZipPath = Join-Path $ReleasesDir "RotinaRemote-Portable.zip"
     Compress-Archive -Path "$PublishDir\*" -DestinationPath $ZipPath -Force
-    Write-Host "     Versão portátil criada em: $ZipPath" -ForegroundColor Green
+    Write-Host "     Versão portátil em ZIP criada em: $ZipPath" -ForegroundColor Green
 
-    # 7. Inno Setup (Se disponível)
+    # 8. Inno Setup (Se disponível)
     $InnoCompiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
     if (Test-Path $InnoCompiler) {
         Exec-Step "Installer" $InnoCompiler @("$RootDir\installer\RotinaRemote.iss")
