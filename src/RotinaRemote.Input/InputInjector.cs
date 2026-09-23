@@ -166,7 +166,28 @@ namespace RotinaRemote.Input
                 if (type == MouseEventType.Move)
                 {
                     // Dispatch WM_MOUSEMOVE with absolute coordinates to update raw input queue
-                    mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                    var moveInput = new INPUT
+                    {
+                        type = INPUT_MOUSE,
+                        U = new InputUnion
+                        {
+                            mi = new MOUSEINPUT
+                            {
+                                dx = absX,
+                                dy = absY,
+                                mouseData = 0,
+                                dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                                time = 0,
+                                dwExtraInfo = IntPtr.Zero
+                            }
+                        }
+                    };
+
+                    uint res = SendInput(1, new[] { moveInput }, Marshal.SizeOf(typeof(INPUT)));
+                    if (res == 0)
+                    {
+                        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                    }
                     return;
                 }
 
@@ -199,26 +220,81 @@ namespace RotinaRemote.Input
 
                 if (clickFlags != 0)
                 {
-                    uint dwFlags = clickFlags;
-                    uint inputX = (uint)absX;
-                    uint inputY = (uint)absY;
-
                     if (clickFlags == MOUSEEVENTF_WHEEL)
                     {
-                        dwFlags = MOUSEEVENTF_WHEEL;
-                        inputX = 0;
-                        inputY = 0;
+                        var wheelInput = new INPUT
+                        {
+                            type = INPUT_MOUSE,
+                            U = new InputUnion
+                            {
+                                mi = new MOUSEINPUT
+                                {
+                                    dx = 0,
+                                    dy = 0,
+                                    mouseData = (uint)wheelDelta,
+                                    dwFlags = MOUSEEVENTF_WHEEL,
+                                    time = 0,
+                                    dwExtraInfo = IntPtr.Zero
+                                }
+                            }
+                        };
+                        uint sent = SendInput(1, new[] { wheelInput }, Marshal.SizeOf(typeof(INPUT)));
+                        if (sent == 0)
+                        {
+                            mouse_event(MOUSEEVENTF_WHEEL, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+                        }
                     }
                     else
                     {
-                        dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                        // To guarantee the click registers at the exact target location across all Windows environments
+                        // (including Windows Sandbox, Hyper-V synthetic mouse, RDP, and multimonitor setups):
+                        // 1) The click event MUST have MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK along with clickFlags.
+                        //    Without MOUSEEVENTF_MOVE, the OS discards dx and dy and clicks at the driver's stale position.
+                        // 2) We send a batch: Move input to (absX, absY) followed by the button event at (absX, absY).
+                        var inputs = new INPUT[2];
+                        inputs[0] = new INPUT
+                        {
+                            type = INPUT_MOUSE,
+                            U = new InputUnion
+                            {
+                                mi = new MOUSEINPUT
+                                {
+                                    dx = absX,
+                                    dy = absY,
+                                    mouseData = 0,
+                                    dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                                    time = 0,
+                                    dwExtraInfo = IntPtr.Zero
+                                }
+                            }
+                        };
+                        inputs[1] = new INPUT
+                        {
+                            type = INPUT_MOUSE,
+                            U = new InputUnion
+                            {
+                                mi = new MOUSEINPUT
+                                {
+                                    dx = absX,
+                                    dy = absY,
+                                    mouseData = 0,
+                                    dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | clickFlags,
+                                    time = 0,
+                                    dwExtraInfo = IntPtr.Zero
+                                }
+                            }
+                        };
+
+                        uint sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+                        if (sent < inputs.Length)
+                        {
+                            // Fallback to mouse_event with absolute move + click flags
+                            mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                            mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | clickFlags, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                        }
+
+                        AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}, SendInput: {sent}]");
                     }
-
-                    // Direct execution via mouse_event with absolute coordinates:
-                    // Bypasses Windows UIPI restrictions, works in Windows Sandbox / Hyper-V and avoids duplicate clicks
-                    mouse_event(dwFlags, inputX, inputY, (uint)wheelDelta, UIntPtr.Zero);
-
-                    AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}]");
                 }
             }
             catch (Exception ex)
