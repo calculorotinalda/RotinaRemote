@@ -298,7 +298,9 @@ namespace RotinaRemote.Input
                         // Chamar SetForegroundWindow manualmente provocava reativações e cancelava
                         // tanto o evento de clique como os menus de contexto (Right Click) e o duplo-clique.
 
-                        // Disparo atómico do clique nas coordenadas absolutas exatas
+                        // Disparo atómico do clique nas coordenadas absolutas exatas.
+                        // Conforme a especificação Win32, MOUSEEVENTF_ABSOLUTE só é válido em conjunto com MOUSEEVENTF_MOVE.
+                        uint clickFlagsWithMove = clickFlags | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
                         var clickInput = new INPUT
                         {
                             type = INPUT_MOUSE,
@@ -309,7 +311,7 @@ namespace RotinaRemote.Input
                                     dx = absX,
                                     dy = absY,
                                     mouseData = 0,
-                                    dwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                                    dwFlags = clickFlagsWithMove,
                                     time = 0,
                                     dwExtraInfo = IntPtr.Zero
                                 }
@@ -319,8 +321,8 @@ namespace RotinaRemote.Input
                         uint sent = SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
                         if (sent == 0)
                         {
-                            // Fallback via mouse_event (opera mesmo com restrições UIPI)
-                            mouse_event(clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                            // Fallback via mouse_event (opera ao nível do driver e contorna restrições de UIPI/UAC)
+                            mouse_event(clickFlagsWithMove, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
                             mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
                         }
 
