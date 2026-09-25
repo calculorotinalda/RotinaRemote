@@ -1,6 +1,6 @@
 {
-  "SignalingServerUrl": "wss://rotinaremote.onrender.com/ws",
-  "RelayServerUrl": "wss://rotinaremote.onrender.com/relay",
+  "SignalingServerUrl": "wss://rotinaremote-signaling-49575983278.europe-west1.run.app/ws",
+  "RelayServerUrl": "wss://rotinaremote-signaling-49575983278.europe-west1.run.app/relay",
   "StunServerHost": "stun.l.google.com",
   "StunServerPort": 19302,
   "KeepAliveIntervalMs": 3000,

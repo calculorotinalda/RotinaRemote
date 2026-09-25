@@ -6,8 +6,8 @@ namespace RotinaRemote.Core.Configuration
 {
     public class AppConfig
     {
-        public string SignalingServerUrl { get; set; } = "wss://rotinaremote.onrender.com/ws";
-        public string RelayServerUrl { get; set; } = "tcp://127.0.0.1:5001";
+        public string SignalingServerUrl { get; set; } = "wss://rotinaremote-signaling-49575983278.europe-west1.run.app/ws";
+        public string RelayServerUrl { get; set; } = "wss://rotinaremote-signaling-49575983278.europe-west1.run.app/relay";
         public string StunServerHost { get; set; } = "stun.l.google.com";
         public int StunServerPort { get; set; } = 19302;
         public int KeepAliveIntervalMs { get; set; } = 3000;
