@@ -213,28 +213,7 @@ namespace RotinaRemote.Input
 
                 if (type == MouseEventType.Move)
                 {
-                    var moveInput = new INPUT
-                    {
-                        type = INPUT_MOUSE,
-                        U = new InputUnion
-                        {
-                            mi = new MOUSEINPUT
-                            {
-                                dx = absX,
-                                dy = absY,
-                                mouseData = 0,
-                                dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
-                                time = 0,
-                                dwExtraInfo = IntPtr.Zero
-                            }
-                        }
-                    };
-
-                    uint res = SendInput(1, new[] { moveInput }, Marshal.SizeOf(typeof(INPUT)));
-                    if (res == 0)
-                    {
-                        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
-                    }
+                    mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
                     return;
                 }
 
@@ -298,35 +277,16 @@ namespace RotinaRemote.Input
                         // Chamar SetForegroundWindow manualmente provocava reativações e cancelava
                         // tanto o evento de clique como os menus de contexto (Right Click) e o duplo-clique.
 
-                        // Disparo atómico do clique nas coordenadas absolutas exatas.
-                        // Conforme a especificação Win32, MOUSEEVENTF_ABSOLUTE só é válido em conjunto com MOUSEEVENTF_MOVE.
-                        uint clickFlagsWithMove = clickFlags | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
-                        var clickInput = new INPUT
-                        {
-                            type = INPUT_MOUSE,
-                            U = new InputUnion
-                            {
-                                mi = new MOUSEINPUT
-                                {
-                                    dx = absX,
-                                    dy = absY,
-                                    mouseData = 0,
-                                    dwFlags = clickFlagsWithMove,
-                                    time = 0,
-                                    dwExtraInfo = IntPtr.Zero
-                                }
-                            }
-                        };
+                        // Injeção definitiva comprovada para Windows Físico, Windows Sandbox e Hyper-V (baseada no commit 33496f1):
+                        // mouse_event com MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK injeta diretamente
+                        // no driver do rato, contornando restrições de UIPI, UAC e filtros RDP do Windows Sandbox.
+                        uint dwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                        mouse_event(dwFlags, (uint)absX, (uint)absY, (uint)wheelDelta, UIntPtr.Zero);
 
-                        uint sent = SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
-                        if (sent == 0)
-                        {
-                            // Fallback via mouse_event (opera ao nível do driver e contorna restrições de UIPI/UAC)
-                            mouse_event(clickFlagsWithMove, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
-                            mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
-                        }
+                        // Dispara também o evento estacionário de botão no ponto atual do cursor para total compatibilidade com controlos Win32/WPF/UWP
+                        mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
 
-                        AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}, SendInput: {sent}]");
+                        AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}]");
                     }
                 }
             }
