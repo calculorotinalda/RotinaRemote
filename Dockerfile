@@ -15,6 +15,6 @@ RUN dotnet publish "RotinaRemote.SignalingServer.csproj" -c Release -o /app/publ
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-ENV PORT=5000
-EXPOSE 5000
+ENV PORT=8080
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "RotinaRemote.SignalingServer.dll"]

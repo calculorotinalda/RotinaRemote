@@ -580,7 +580,7 @@ namespace RotinaRemote.Client.ViewModels
                                     activeSession = await TryConnectWebSocketRelayAsync(endpointInfo.RelaySessionId, relayUrl, 10000);
                                     if (activeSession != null)
                                     {
-                                        usedTransportName = "Servidor Relay WebSocket (Render)";
+                                        usedTransportName = "Servidor Relay WebSocket (Cloud)";
                                         usedTransportType = TransportTypeEnum.Relay;
                                     }
                                 }

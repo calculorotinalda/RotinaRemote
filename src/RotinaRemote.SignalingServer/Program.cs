@@ -37,7 +37,7 @@ namespace RotinaRemote.SignalingServer
         {
             var builder = WebApplication.CreateBuilder(args);
             
-            string port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+            string port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
             builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
             var app = builder.Build();
