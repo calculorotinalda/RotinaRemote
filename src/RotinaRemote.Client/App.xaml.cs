@@ -11,6 +11,12 @@ namespace RotinaRemote.Client
     {
         protected override void OnStartup(System.Windows.StartupEventArgs e)
         {
+            try
+            {
+                System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
+            }
+            catch { }
+
             base.OnStartup(e);
 
             AppLogger.LogInfo("App", "RotinaRemote Client iniciando...");

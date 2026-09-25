@@ -86,27 +86,10 @@ namespace RotinaRemote.Input
 
         private const uint KEYEVENTF_KEYUP = 0x0002;
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct POINT
-        {
-            public int X;
-            public int Y;
-            public POINT(int x, int y) { X = x; Y = y; }
-        }
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr WindowFromPoint(POINT Point);
-
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
-        private const uint GA_ROOT = 2;
-
         private static int _lastClickX = -1;
         private static int _lastClickY = -1;
         private static DateTime _lastClickTime = DateTime.MinValue;
+        private static bool _isLeftButtonDown = false;
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
@@ -176,16 +159,18 @@ namespace RotinaRemote.Input
                     targetY = vTop + (int)Math.Round(normalizedY * (vHeight - 1));
                 }
 
-                // Deteção e estabilização de duplo-clique:
-                // Se um novo clique ocorrer dentro de 600ms e a menos de 10 pixels do anterior,
-                // fixa a coordenada idêntica para o Windows registrar WM_LBUTTONDBLCLK com 100% de fiabilidade.
                 var now = DateTime.UtcNow;
+
+                // Estabilização rigorosa de duplo-clique:
+                // Se um novo clique ocorrer dentro de 550ms a menos de 15px do anterior,
+                // fixa a coordenada exatamente idêntica para o Windows gerar WM_LBUTTONDBLCLK com 100% de fiabilidade.
                 if (type == MouseEventType.LeftDown)
                 {
-                    if ((now - _lastClickTime).TotalMilliseconds <= 600 &&
+                    _isLeftButtonDown = true;
+                    if ((now - _lastClickTime).TotalMilliseconds <= 550 &&
                         _lastClickX >= 0 &&
-                        Math.Abs(targetX - _lastClickX) <= 10 &&
-                        Math.Abs(targetY - _lastClickY) <= 10)
+                        Math.Abs(targetX - _lastClickX) <= 15 &&
+                        Math.Abs(targetY - _lastClickY) <= 15)
                     {
                         targetX = _lastClickX;
                         targetY = _lastClickY;
@@ -197,12 +182,23 @@ namespace RotinaRemote.Input
                     }
                     _lastClickTime = now;
                 }
-                else if (type == MouseEventType.LeftUp && (now - _lastClickTime).TotalMilliseconds <= 600 && _lastClickX >= 0)
+                else if (type == MouseEventType.LeftUp)
                 {
-                    if (Math.Abs(targetX - _lastClickX) <= 10 && Math.Abs(targetY - _lastClickY) <= 10)
+                    _isLeftButtonDown = false;
+                    if ((now - _lastClickTime).TotalMilliseconds <= 550 && _lastClickX >= 0 &&
+                        Math.Abs(targetX - _lastClickX) <= 15 && Math.Abs(targetY - _lastClickY) <= 15)
                     {
                         targetX = _lastClickX;
                         targetY = _lastClickY;
+                    }
+                }
+                else if (type == MouseEventType.Move && _isLeftButtonDown && _lastClickX >= 0)
+                {
+                    // Se o botão está premido mas o movimento é inferior a 6px (micro-movimento acidental da mão durante um clique),
+                    // não move o cursor para evitar converter o clique num arrasto (drag-and-drop) indesejado.
+                    if (Math.Abs(targetX - _lastClickX) < 6 && Math.Abs(targetY - _lastClickY) < 6)
+                    {
+                        return;
                     }
                 }
 
@@ -212,12 +208,11 @@ namespace RotinaRemote.Input
                 absX = Math.Clamp(absX, 0, 65535);
                 absY = Math.Clamp(absY, 0, 65535);
 
-                // 1. Move cursor visual
+                // 1. Posiciona sempre o cursor do ecrã de forma síncrona
                 SetCursorPos(targetX, targetY);
 
                 if (type == MouseEventType.Move)
                 {
-                    // Envia movimento na fila de hardware
                     var moveInput = new INPUT
                     {
                         type = INPUT_MOUSE,
@@ -298,31 +293,13 @@ namespace RotinaRemote.Input
                     }
                     else
                     {
-                        // Ativação suave da janela sob o cursor
-                        if (type == MouseEventType.LeftDown || type == MouseEventType.RightDown)
-                        {
-                            try
-                            {
-                                IntPtr targetHwnd = WindowFromPoint(new POINT(targetX, targetY));
-                                if (targetHwnd != IntPtr.Zero)
-                                {
-                                    IntPtr rootHwnd = GetAncestor(targetHwnd, GA_ROOT);
-                                    if (rootHwnd != IntPtr.Zero)
-                                    {
-                                        SetForegroundWindow(rootHwnd);
-                                    }
-                                }
-                            }
-                            catch { }
-                        }
+                        // IMPORTANTE: NÃO chamar SetForegroundWindow!
+                        // O Windows ativa nativamente a janela sob o cursor ao receber cliques.
+                        // Chamar SetForegroundWindow manualmente provocava reativações e cancelava
+                        // tanto o evento de clique como os menus de contexto (Right Click) e o duplo-clique.
 
-                        // REGRA CRÍTICA PARA CLIQUE E DUPLO-CLIQUE NO WINDOWS:
-                        // inputs[0] move o hardware para as coordenadas alvo.
-                        // inputs[1] despacha o clique estacionário (clickFlags) SEM a flag MOUSEEVENTF_MOVE.
-                        // Se inputs[1] contivesse MOUSEEVENTF_MOVE, o Windows trataria como arrasto (drag)
-                        // cancelando o evento de clique e o duplo-clique!
-                        var inputs = new INPUT[2];
-                        inputs[0] = new INPUT
+                        // Disparo atómico do clique nas coordenadas absolutas exatas
+                        var clickInput = new INPUT
                         {
                             type = INPUT_MOUSE,
                             U = new InputUnion
@@ -332,34 +309,18 @@ namespace RotinaRemote.Input
                                     dx = absX,
                                     dy = absY,
                                     mouseData = 0,
-                                    dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
-                                    time = 0,
-                                    dwExtraInfo = IntPtr.Zero
-                                }
-                            }
-                        };
-                        inputs[1] = new INPUT
-                        {
-                            type = INPUT_MOUSE,
-                            U = new InputUnion
-                            {
-                                mi = new MOUSEINPUT
-                                {
-                                    dx = 0,
-                                    dy = 0,
-                                    mouseData = 0,
-                                    dwFlags = clickFlags,
+                                    dwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
                                     time = 0,
                                     dwExtraInfo = IntPtr.Zero
                                 }
                             }
                         };
 
-                        uint sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
-                        if (sent < inputs.Length)
+                        uint sent = SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
+                        if (sent == 0)
                         {
-                            // Fallback via mouse_event caso SendInput seja restringido
-                            mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                            // Fallback via mouse_event (opera mesmo com restrições UIPI)
+                            mouse_event(clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
                             mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
                         }
 
@@ -402,7 +363,6 @@ namespace RotinaRemote.Input
                 uint sent = SendInput(1, new INPUT[] { input }, Marshal.SizeOf(typeof(INPUT)));
                 if (sent == 0)
                 {
-                    // Fallback to legacy keybd_event API if SendInput is blocked
                     keybd_event((byte)virtualKeyCode, 0, dwFlags, UIntPtr.Zero);
                 }
             }

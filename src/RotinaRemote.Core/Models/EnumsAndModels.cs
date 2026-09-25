@@ -59,13 +59,25 @@ namespace RotinaRemote.Core.Models
         public string Status { get; set; } = "Concluída";
     }
 
+    public class GeoLocationInfo
+    {
+        public string CallerDeviceId { get; set; } = string.Empty;
+        public string Ip { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+    }
+
     public class SignalingEndpointInfo
     {
+        public bool Accepted { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
         public string LocalIp { get; set; } = string.Empty;
         public string PublicIp { get; set; } = string.Empty;
         public int Port { get; set; } = 48270;
         public string RelaySessionId { get; set; } = string.Empty;
         public string RelayServerUrl { get; set; } = string.Empty;
+        public GeoLocationInfo? CallerInfo { get; set; }
     }
 }
 

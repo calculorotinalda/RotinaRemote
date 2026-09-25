@@ -56,6 +56,11 @@ namespace RotinaRemote.Client.Views
             return true;
         }
 
+        private double _lastLeftNormX = -1;
+        private double _lastLeftNormY = -1;
+        private DateTime _lastLeftClickTime = DateTime.MinValue;
+        private bool _isClientMouseDown = false;
+
         private void OnRemoteScreenMouseMove(object sender, MouseEventArgs e)
         {
             var now = DateTime.UtcNow;
@@ -71,6 +76,19 @@ namespace RotinaRemote.Client.Views
 
             if (GetNormalizedCoordinates(pos, out double normX, out double normY))
             {
+                // Se o botão do rato estiver premido (durante um clique ou duplo-clique),
+                // só envia movimento se o deslocamento for significativo (arrasto intencional),
+                // evitando converter um clique em arrasto (drag) por micro-movimento da mão.
+                if (_isClientMouseDown && _lastLeftNormX >= 0)
+                {
+                    double deltaX = System.Math.Abs(normX - _lastLeftNormX);
+                    double deltaY = System.Math.Abs(normY - _lastLeftNormY);
+                    if (deltaX < 0.006 && deltaY < 0.006)
+                    {
+                        return;
+                    }
+                }
+
                 SendMouseInput(MouseEventType.Move, normX, normY);
             }
         }
@@ -82,6 +100,30 @@ namespace RotinaRemote.Client.Views
             var pos = e.GetPosition(RemoteScreenImage);
             if (GetNormalizedCoordinates(pos, out double normX, out double normY))
             {
+                var now = DateTime.UtcNow;
+
+                if (e.ChangedButton == MouseButton.Left)
+                {
+                    _isClientMouseDown = true;
+
+                    // Deteção e estabilização de duplo-clique do WPF:
+                    // Se for um duplo-clique (ClickCount >= 2) ou ocorrer dentro de 550ms muito próximo do clique anterior,
+                    // ancora as coordenadas exatamente às mesmas do primeiro clique para o Windows remoto acionar WM_LBUTTONDBLCLK.
+                    if ((e.ClickCount >= 2 || (now - _lastLeftClickTime).TotalMilliseconds <= 550) && _lastLeftNormX >= 0 &&
+                        System.Math.Abs(normX - _lastLeftNormX) < 0.012 &&
+                        System.Math.Abs(normY - _lastLeftNormY) < 0.012)
+                    {
+                        normX = _lastLeftNormX;
+                        normY = _lastLeftNormY;
+                    }
+                    else
+                    {
+                        _lastLeftNormX = normX;
+                        _lastLeftNormY = normY;
+                    }
+                    _lastLeftClickTime = now;
+                }
+
                 MouseEventType mouseType = e.ChangedButton switch
                 {
                     MouseButton.Left => MouseEventType.LeftDown,
@@ -121,6 +163,19 @@ namespace RotinaRemote.Client.Views
                             normX = System.Math.Clamp(relX / dispWidth, 0.0, 1.0);
                             normY = System.Math.Clamp(relY / dispHeight, 0.0, 1.0);
                         }
+                    }
+                }
+
+                if (e.ChangedButton == MouseButton.Left)
+                {
+                    _isClientMouseDown = false;
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastLeftClickTime).TotalMilliseconds <= 550 && _lastLeftNormX >= 0 &&
+                        System.Math.Abs(normX - _lastLeftNormX) < 0.012 &&
+                        System.Math.Abs(normY - _lastLeftNormY) < 0.012)
+                    {
+                        normX = _lastLeftNormX;
+                        normY = _lastLeftNormY;
                     }
                 }
 

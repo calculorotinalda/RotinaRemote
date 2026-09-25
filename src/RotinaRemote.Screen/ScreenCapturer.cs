@@ -46,6 +46,12 @@ namespace RotinaRemote.Screen
         [DllImport("gdi32.dll")]
         private static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight, IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
 
+        [DllImport("gdi32.dll")]
+        private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
+        private const int DESKTOPHORZRES = 118;
+        private const int DESKTOPVERTRES = 117;
+
         private int _selectedMonitorIndex = 0;
         private uint _frameCounter = 0;
 
@@ -93,9 +99,35 @@ namespace RotinaRemote.Screen
                     if (_selectedMonitorIndex >= 0 && _selectedMonitorIndex < screens.Length)
                     {
                         _cachedBounds = screens[_selectedMonitorIndex].Bounds;
-                        return _cachedBounds;
                     }
-                    _cachedBounds = System.Windows.Forms.Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+                    else
+                    {
+                        _cachedBounds = System.Windows.Forms.Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+                    }
+
+                    // Correção automática de DPI: se o Windows virtualizou as dimensões do ecrã (ex: 125% ou 150%),
+                    // garante que a captura e o mapeamento de coordenadas operam nas dimensões físicas reais de hardware.
+                    IntPtr hdc = GetDC(IntPtr.Zero);
+                    if (hdc != IntPtr.Zero)
+                    {
+                        try
+                        {
+                            int dHorzRes = GetDeviceCaps(hdc, DESKTOPHORZRES);
+                            int dVertRes = GetDeviceCaps(hdc, DESKTOPVERTRES);
+                            if (dHorzRes > 0 && dVertRes > 0)
+                            {
+                                if (_cachedBounds.Width < dHorzRes || _cachedBounds.Height < dVertRes)
+                                {
+                                    _cachedBounds = new Rectangle(_cachedBounds.X, _cachedBounds.Y, dHorzRes, dVertRes);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            ReleaseDC(IntPtr.Zero, hdc);
+                        }
+                    }
+
                     return _cachedBounds;
                 }
                 catch

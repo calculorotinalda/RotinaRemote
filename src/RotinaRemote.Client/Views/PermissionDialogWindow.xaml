@@ -1,11 +1,12 @@
 <Window x:Class="RotinaRemote.Client.Views.PermissionDialogWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Pedido de Acesso Remoto" Height="420" Width="480"
+        Title="Pedido de Ligação Remota" Height="560" Width="520"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="{StaticResource PrimaryBackground}" Foreground="{StaticResource TextPrimary}">
+        Background="{StaticResource PrimaryBackground}" Foreground="{StaticResource TextPrimary}"
+        Topmost="True">
 
-    <Grid Margin="24">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -14,48 +15,97 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,16">
-            <TextBlock Text="Pedido de Acesso Remoto" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" />
-            <TextBlock Text="Um dispositivo remoto está a solicitar ligação a este computador." FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,4,0,0"/>
-        </StackPanel>
-
-        <!-- Info do Solicitante -->
-        <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="💻" FontSize="28" VerticalAlignment="Center" Margin="0,0,16,0" />
-                <StackPanel Grid.Column="1">
-                    <TextBlock Text="ID Remoto:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                    <TextBlock x:Name="TxtRemoteId" Text="482 731 905" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,4"/>
-                    <TextBlock Text="Nome do Dispositivo:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                    <TextBlock x:Name="TxtRemoteName" Text="PC-CLIENTE-TÉCNICO" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
+        <Border Grid.Row="0" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🔔" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="Pedido de Ligação Remota" FontSize="17" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" VerticalAlignment="Center"/>
                 </StackPanel>
-            </Grid>
+                <TextBlock Text="Um utilizador remoto está a solicitar controlo deste computador." FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="28,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Info do Solicitante (ID, IP, Cidade, País, Localização) -->
+        <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource AccentBlue}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,14">
+            <StackPanel>
+                <!-- ID Remoto em Destaque -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="🆔" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ID REMOTO DO SOLICITANTE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock x:Name="TxtRemoteId" Text="--- --- ---" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" />
+                    </StackPanel>
+                </Grid>
+
+                <Separator Background="#33FFFFFF" Margin="0,4,0,10"/>
+
+                <!-- Detalhes de Localização: IP, Cidade, País, Localização -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- IP Público / Rede -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8">
+                        <TextBlock Text="🌐 Endereço IP:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock x:Name="TxtRemoteIp" Text="A verificar..." FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
+                    </StackPanel>
+
+                    <!-- Cidade -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8">
+                        <TextBlock Text="🏙️ Cidade:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock x:Name="TxtRemoteCity" Text="Desconhecida" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
+                    </StackPanel>
+
+                    <!-- País -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
+                        <TextBlock Text="🌍 País:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock x:Name="TxtRemoteCountry" Text="Desconhecido" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
+                    </StackPanel>
+
+                    <!-- Localização Detalhada -->
+                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
+                        <TextBlock Text="📍 Localização:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
+                        <TextBlock x:Name="TxtRemoteLocation" Text="Desconhecida" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
         </Border>
 
         <!-- Permissões Concedidas -->
-        <StackPanel Grid.Row="2" Margin="0,0,0,16">
-            <TextBlock Text="Permissões a conceder nesta sessão:" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+        <Border Grid.Row="2" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
+            <StackPanel>
+                <TextBlock Text="Permissões a conceder ao utilizador remoto:" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
 
-            <CheckBox x:Name="ChkViewScreen" Content="Ver ecrã em tempo real" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
-            <CheckBox x:Name="ChkControlMouse" Content="Controlar movimento e cliques do rato" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
-            <CheckBox x:Name="ChkControlKeyboard" Content="Controlar entrada de teclado" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
-            <CheckBox x:Name="ChkFileTransfer" Content="Transferir e receber ficheiros" IsChecked="False" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
-            <CheckBox x:Name="ChkClipboard" Content="Sincronizar área de transferência (Clipboard)" IsChecked="False" Foreground="{StaticResource TextPrimary}" Margin="0,4"/>
+                <CheckBox x:Name="ChkViewScreen" Content="Ver ecrã em tempo real" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
+                <CheckBox x:Name="ChkControlMouse" Content="Controlar movimento e cliques do rato" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
+                <CheckBox x:Name="ChkControlKeyboard" Content="Controlar entrada de teclado" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
+                <CheckBox x:Name="ChkFileTransfer" Content="Transferir e receber ficheiros" IsChecked="False" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
+                <CheckBox x:Name="ChkClipboard" Content="Sincronizar área de transferência" IsChecked="False" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Botões de Ação com Temporizador -->
+        <StackPanel Grid.Row="3">
+            <TextBlock x:Name="TxtCountdown" Text="Aguardando a sua resposta (rejeição automática em 30s)..." FontSize="11" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Content="REJEITAR" Click="OnRejectClicked" Background="{StaticResource AccentRed}" FontSize="14" FontWeight="Bold" Height="42" Margin="0,0,8,0"/>
+                <Button Content="ACEITAR" Click="OnAcceptClicked" Background="{StaticResource AccentGreen}" FontSize="14" FontWeight="Bold" Height="42" Margin="8,0,0,0"/>
+            </Grid>
         </StackPanel>
-
-        <!-- Botões de Ação -->
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <Button Content="REJEITAR" Click="OnRejectClicked" Background="{StaticResource AccentRed}" Height="40" Margin="0,0,8,0"/>
-            <Button Content="ACEITAR" Click="OnAcceptClicked" Background="{StaticResource AccentGreen}" Height="40" Margin="8,0,0,0"/>
-        </Grid>
     </Grid>
 </Window>

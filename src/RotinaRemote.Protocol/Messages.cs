@@ -22,6 +22,19 @@ namespace RotinaRemote.Protocol
         public string ClientName { get; set; } = string.Empty;
         public string EphemeralPublicKey { get; set; } = string.Empty; // Base64 ECDH Public Key
         public string Version { get; set; } = "1.0.0";
+        public string ClientIp { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+    }
+
+    public class SignalingConnectRequestPayload
+    {
+        public string CallerDeviceId { get; set; } = string.Empty;
+        public string CallerIp { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
     }
 
     public class HandshakeResponsePayload

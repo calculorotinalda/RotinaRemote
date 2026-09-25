@@ -188,7 +188,7 @@ namespace RotinaRemote.Network
             }
         }
 
-        public async Task<string?> ResolveViaSignalingAsync(string targetDeviceIdRaw, TimeSpan timeout)
+        public async Task<string?> ResolveViaSignalingAsync(string targetDeviceIdRaw, TimeSpan timeout, string payload = "RequestConnectInfo")
         {
             if (!IsConnected) return null;
 
@@ -198,7 +198,7 @@ namespace RotinaRemote.Network
 
             try
             {
-                await SendMessageAsync("ConnectRequest", cleanTargetId, "RequestConnectInfo");
+                await SendMessageAsync("ConnectRequest", cleanTargetId, payload);
 
                 using var cts = new CancellationTokenSource(timeout);
                 using (cts.Token.Register(() => tcs.TrySetCanceled()))

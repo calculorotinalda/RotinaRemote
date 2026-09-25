@@ -160,6 +160,46 @@ namespace RotinaRemote.Client.ViewModels
         {
             try
             {
+                string callerId = sourceId;
+                string callerIp = "Desconhecido";
+                string callerCity = "Desconhecida";
+                string callerCountry = "Desconhecido";
+                string callerLocation = "Desconhecida";
+
+                try
+                {
+                    var req = MessageSerializer.DeserializeJson<SignalingConnectRequestPayload>(System.Text.Encoding.UTF8.GetBytes(payload));
+                    if (req != null)
+                    {
+                        callerId = !string.IsNullOrWhiteSpace(req.CallerDeviceId) ? req.CallerDeviceId : sourceId;
+                        callerIp = !string.IsNullOrWhiteSpace(req.CallerIp) ? req.CallerIp : "Desconhecido";
+                        callerCity = !string.IsNullOrWhiteSpace(req.City) ? req.City : "Desconhecida";
+                        callerCountry = !string.IsNullOrWhiteSpace(req.Country) ? req.Country : "Desconhecido";
+                        callerLocation = !string.IsNullOrWhiteSpace(req.Location) ? req.Location : $"{callerCity}, {callerCountry}";
+                    }
+                }
+                catch { }
+
+                bool isApproved = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var dialog = new Views.PermissionDialogWindow(callerId, callerIp, callerCity, callerCountry, callerLocation);
+                    isApproved = dialog.ShowDialog() == true && dialog.IsApproved;
+                });
+
+                if (!isApproved)
+                {
+                    var rejectEndpointData = new SignalingEndpointInfo
+                    {
+                        Accepted = false,
+                        Message = "A ligação remota foi recusada pelo utilizador do computador anfitrião."
+                    };
+                    string rejectPayload = System.Text.Json.JsonSerializer.Serialize(rejectEndpointData);
+                    await _signalingClient.SendMessageAsync("ConnectResponse", sourceId, rejectPayload);
+                    AppLogger.LogInfo("MainViewModel", $"Pedido de ligação de {callerId} ({callerCity}, {callerCountry}) rejeitado pelo utilizador.");
+                    return;
+                }
+
                 string publicIp = string.Empty;
                 try
                 {
@@ -175,6 +215,7 @@ namespace RotinaRemote.Client.ViewModels
 
                 var endpointData = new SignalingEndpointInfo
                 {
+                    Accepted = true,
                     LocalIp = _lanDiscovery.LocalIP ?? "",
                     PublicIp = publicIp,
                     Port = 48270,
@@ -251,12 +292,52 @@ namespace RotinaRemote.Client.ViewModels
             }
         }
 
-        private void OnIncomingClientConnected(Socket socket)
+        private async void OnIncomingClientConnected(Socket socket)
         {
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            var remoteIp = ((IPEndPoint?)socket.RemoteEndPoint)?.Address.ToString() ?? "Remoto";
+            string resolvedId = remoteIp;
+            string city = "Rede Local";
+            string country = "Portugal / Local";
+            string location = "Rede Local (LAN)";
+
+            if (remoteIp.StartsWith("172.19."))
             {
-                var remoteIp = ((IPEndPoint?)socket.RemoteEndPoint)?.Address.ToString() ?? "Remoto";
-                var dialog = new Views.PermissionDialogWindow(remoteIp, "PC-REMOTO-" + remoteIp);
+                location = "Windows Sandbox (Hyper-V)";
+            }
+
+            foreach (var kvp in _lanDiscovery.DiscoveredPeers)
+            {
+                if (kvp.Value.IpAddress.ToString() == remoteIp)
+                {
+                    resolvedId = kvp.Key;
+                    break;
+                }
+            }
+
+            bool isLocal = remoteIp.StartsWith("192.168.") ||
+                           remoteIp.StartsWith("10.") ||
+                           remoteIp.StartsWith("172.19.") ||
+                           remoteIp.StartsWith("127.") ||
+                           remoteIp.Equals("::1");
+
+            if (!isLocal && IPAddress.TryParse(remoteIp, out _))
+            {
+                try
+                {
+                    var geo = await RotinaRemote.Core.Services.GeoLocationService.GetGeoLocationAsync(resolvedId);
+                    if (geo != null)
+                    {
+                        city = geo.City;
+                        country = geo.Country;
+                        location = geo.Location;
+                    }
+                }
+                catch { }
+            }
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                var dialog = new Views.PermissionDialogWindow(resolvedId, remoteIp, city, country, location);
                 if (dialog.ShowDialog() == true && dialog.IsApproved)
                 {
                     var session = new ConnectionSession(socket);
@@ -270,7 +351,7 @@ namespace RotinaRemote.Client.ViewModels
                             ConnectionStatus = "Pronto";
                         });
                     };
-                    ConnectionStatus = "Sessão Ativa com " + remoteIp;
+                    ConnectionStatus = "Sessão Ativa com " + resolvedId;
                     StartHostScreenStreaming(session);
                 }
                 else
@@ -530,8 +611,19 @@ namespace RotinaRemote.Client.ViewModels
 
                 if (activeSocket == null && _signalingClient.IsConnected)
                 {
-                    ConnectionStatus = "A consultar Servidor de Sinalização na Nuvem para " + targetHost + "...";
-                    var signalingPayload = await _signalingClient.ResolveViaSignalingAsync(parsedId.RawValue, TimeSpan.FromSeconds(5));
+                    ConnectionStatus = "A aguardar autorização do anfitrião " + targetHost + "...";
+
+                    var myGeo = await RotinaRemote.Core.Services.GeoLocationService.GetGeoLocationAsync(_identity.FormattedId);
+                    var reqPayload = new SignalingConnectRequestPayload
+                    {
+                        CallerDeviceId = _identity.FormattedId,
+                        CallerIp = myGeo.Ip,
+                        City = myGeo.City,
+                        Country = myGeo.Country,
+                        Location = myGeo.Location
+                    };
+                    string reqJson = System.Text.Json.JsonSerializer.Serialize(reqPayload);
+                    var signalingPayload = await _signalingClient.ResolveViaSignalingAsync(parsedId.RawValue, TimeSpan.FromSeconds(35), reqJson);
 
                     if (!string.IsNullOrWhiteSpace(signalingPayload))
                     {
@@ -544,6 +636,15 @@ namespace RotinaRemote.Client.ViewModels
 
                         if (endpointInfo != null)
                         {
+                            if (!endpointInfo.Accepted)
+                            {
+                                string rejectReason = !string.IsNullOrWhiteSpace(endpointInfo.Message)
+                                    ? endpointInfo.Message
+                                    : "A ligação remota foi recusada pelo utilizador do computador anfitrião.";
+                                MessageBox.Show(rejectReason, "Ligação Recusada", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                ConnectionStatus = "Ligação Recusada";
+                                return;
+                            }
                             // 1. Try Local IP (if present)
                             if (activeSocket == null && !string.IsNullOrWhiteSpace(endpointInfo.LocalIp) && IPAddress.TryParse(endpointInfo.LocalIp, out var locIp))
                             {
