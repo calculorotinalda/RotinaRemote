@@ -1,0 +1,17 @@
+.gcloudignore
+.git/
+.gitignore
+.vs/
+publish/
+publish-singlefile/
+Releases/
+installer/
+tests/
+**/bin/
+**/obj/
+*.exe
+*.zip
+*.ico
+*.png
+*.txt
+*.md
