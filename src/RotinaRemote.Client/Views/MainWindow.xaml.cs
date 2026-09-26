@@ -167,9 +167,9 @@ namespace RotinaRemote.Client.Views
                 _isClientMouseDown = true;
 
                 // Deteção e estabilização de duplo-clique do WPF:
-                if ((e.ClickCount >= 2 || (now - _lastLeftClickTime).TotalMilliseconds <= 550) && _lastLeftNormX >= 0 &&
-                    System.Math.Abs(normX - _lastLeftNormX) < 0.012 &&
-                    System.Math.Abs(normY - _lastLeftNormY) < 0.012)
+                if (e.ClickCount >= 2 && _lastLeftNormX >= 0 &&
+                    System.Math.Abs(normX - _lastLeftNormX) < 0.006 &&
+                    System.Math.Abs(normY - _lastLeftNormY) < 0.006)
                 {
                     normX = _lastLeftNormX;
                     normY = _lastLeftNormY;
@@ -230,8 +230,8 @@ namespace RotinaRemote.Client.Views
                     _isClientMouseDown = false;
                     var now = DateTime.UtcNow;
                     if ((now - _lastLeftClickTime).TotalMilliseconds <= 550 && _lastLeftNormX >= 0 &&
-                        System.Math.Abs(normX - _lastLeftNormX) < 0.012 &&
-                        System.Math.Abs(normY - _lastLeftNormY) < 0.012)
+                        System.Math.Abs(normX - _lastLeftNormX) < 0.006 &&
+                        System.Math.Abs(normY - _lastLeftNormY) < 0.006)
                     {
                         normX = _lastLeftNormX;
                         normY = _lastLeftNormY;

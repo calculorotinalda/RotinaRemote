@@ -117,6 +117,15 @@ namespace RotinaRemote.Input
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool SetThreadDesktop(IntPtr hDesktop);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool CloseDesktop(IntPtr hDesktop);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetThreadDesktop(uint dwThreadId);
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
         private const uint DESKTOP_ALL_ACCESS = 0x01FF;
 
         private const int SM_CXSCREEN = 0;
@@ -136,17 +145,17 @@ namespace RotinaRemote.Input
                 IntPtr hDesktop = OpenInputDesktop(0, false, DESKTOP_ALL_ACCESS);
                 if (hDesktop != IntPtr.Zero)
                 {
-                    bool setOk = SetThreadDesktop(hDesktop);
-                    if (!setOk)
+                    IntPtr curDesk = GetThreadDesktop(GetCurrentThreadId());
+                    if (curDesk != hDesktop)
                     {
-                        int err = Marshal.GetLastWin32Error();
-                        AppLogger.LogDebug("RemoteSession", $"[HOST DESKTOP] SetThreadDesktop falhou com Win32 Error={err}.");
+                        bool setOk = SetThreadDesktop(hDesktop);
+                        if (!setOk)
+                        {
+                            int err = Marshal.GetLastWin32Error();
+                            AppLogger.LogDebug("RemoteSession", $"[HOST DESKTOP] SetThreadDesktop falhou com Win32 Error={err}.");
+                        }
                     }
-                }
-                else
-                {
-                    int err = Marshal.GetLastWin32Error();
-                    AppLogger.LogDebug("RemoteSession", $"[HOST DESKTOP] OpenInputDesktop retornou zero. Win32 Error={err}.");
+                    CloseDesktop(hDesktop);
                 }
             }
             catch (Exception ex)
@@ -203,19 +212,29 @@ namespace RotinaRemote.Input
                     targetY = vTop + (int)Math.Round(normalizedY * (vHeight - 1));
                 }
 
+                // Cálculo de coordenadas absolutas normalizadas (0 a 65535) exigidas pelo subsistema HID e SendInput
+                int absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
+                int absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
+                absX = Math.Clamp(absX, 0, 65535);
+                absY = Math.Clamp(absY, 0, 65535);
+
                 var now = DateTime.UtcNow;
 
-                // Estabilização rigorosa de clique e duplo-clique:
+                // Estabilização para duplo-clique no mesmo pixel
                 if (type == MouseEventType.LeftDown)
                 {
                     _isLeftButtonDown = true;
                     if ((now - _lastClickTime).TotalMilliseconds <= 550 &&
                         _lastClickX >= 0 &&
-                        Math.Abs(targetX - _lastClickX) <= 15 &&
-                        Math.Abs(targetY - _lastClickY) <= 15)
+                        Math.Abs(targetX - _lastClickX) <= 5 &&
+                        Math.Abs(targetY - _lastClickY) <= 5)
                     {
                         targetX = _lastClickX;
                         targetY = _lastClickY;
+                        absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
+                        absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
+                        absX = Math.Clamp(absX, 0, 65535);
+                        absY = Math.Clamp(absY, 0, 65535);
                     }
                     else
                     {
@@ -228,10 +247,14 @@ namespace RotinaRemote.Input
                 {
                     _isLeftButtonDown = false;
                     if ((now - _lastClickTime).TotalMilliseconds <= 550 && _lastClickX >= 0 &&
-                        Math.Abs(targetX - _lastClickX) <= 15 && Math.Abs(targetY - _lastClickY) <= 15)
+                        Math.Abs(targetX - _lastClickX) <= 5 && Math.Abs(targetY - _lastClickY) <= 5)
                     {
                         targetX = _lastClickX;
                         targetY = _lastClickY;
+                        absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
+                        absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
+                        absX = Math.Clamp(absX, 0, 65535);
+                        absY = Math.Clamp(absY, 0, 65535);
                     }
                 }
                 else if (type == MouseEventType.RightDown)
@@ -242,36 +265,86 @@ namespace RotinaRemote.Input
                 else if (type == MouseEventType.RightUp)
                 {
                     if (_lastRightClickX >= 0 &&
-                        Math.Abs(targetX - _lastRightClickX) <= 15 &&
-                        Math.Abs(targetY - _lastRightClickY) <= 15)
+                        Math.Abs(targetX - _lastRightClickX) <= 5 &&
+                        Math.Abs(targetY - _lastRightClickY) <= 5)
                     {
                         targetX = _lastRightClickX;
                         targetY = _lastRightClickY;
+                        absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
+                        absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
+                        absX = Math.Clamp(absX, 0, 65535);
+                        absY = Math.Clamp(absY, 0, 65535);
                     }
                 }
                 else if (type == MouseEventType.Move && _isLeftButtonDown && _lastClickX >= 0)
                 {
-                    if (Math.Abs(targetX - _lastClickX) < 6 && Math.Abs(targetY - _lastClickY) < 6)
+                    if (Math.Abs(targetX - _lastClickX) < 3 && Math.Abs(targetY - _lastClickY) < 3)
                     {
                         return;
                     }
                 }
 
-                // 1. Posiciona o cursor do Windows no ponto exato em píxeis
-                bool setPosOk = SetCursorPos(targetX, targetY);
-                if (!setPosOk && type != MouseEventType.Move)
-                {
-                    int err = Marshal.GetLastWin32Error();
-                    AppLogger.LogWarning("RemoteSession", $"[HOST ERROR] SetCursorPos({targetX}, {targetY}) falhou! Win32 Error={err}");
-                }
+                // 1. Move o ponteiro visual do Windows
+                SetCursorPos(targetX, targetY);
 
+                // Tratamento específico de movimento
                 if (type == MouseEventType.Move)
                 {
-                    mouse_event(MOUSEEVENTF_MOVE, 0, 0, 0, UIntPtr.Zero);
+                    uint moveFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                    var moveInput = new INPUT
+                    {
+                        type = INPUT_MOUSE,
+                        U = new InputUnion
+                        {
+                            mi = new MOUSEINPUT
+                            {
+                                dx = absX,
+                                dy = absY,
+                                mouseData = 0,
+                                dwFlags = moveFlags,
+                                time = 0,
+                                dwExtraInfo = IntPtr.Zero
+                            }
+                        }
+                    };
+                    uint mSent = SendInput(1, new[] { moveInput }, Marshal.SizeOf(typeof(INPUT)));
+                    if (mSent == 0)
+                    {
+                        mouse_event(moveFlags, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                    }
                     return;
                 }
 
-                // 2. Ações de clique / scroll
+                // Tratamento de Scroll
+                if (type == MouseEventType.WheelVertical)
+                {
+                    uint wheelFlags = MOUSEEVENTF_WHEEL | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                    var wheelInput = new INPUT
+                    {
+                        type = INPUT_MOUSE,
+                        U = new InputUnion
+                        {
+                            mi = new MOUSEINPUT
+                            {
+                                dx = absX,
+                                dy = absY,
+                                mouseData = (uint)wheelDelta,
+                                dwFlags = wheelFlags,
+                                time = 0,
+                                dwExtraInfo = IntPtr.Zero
+                            }
+                        }
+                    };
+                    uint wSent = SendInput(1, new[] { wheelInput }, Marshal.SizeOf(typeof(INPUT)));
+                    if (wSent == 0)
+                    {
+                        mouse_event(wheelFlags, (uint)absX, (uint)absY, (uint)wheelDelta, UIntPtr.Zero);
+                    }
+                    AppLogger.LogInfo("RemoteSession", $"[HOST WHEEL] Roda vertical disparada com delta={wheelDelta} em ({targetX}, {targetY}).");
+                    return;
+                }
+
+                // 2. Ações de clique (LeftDown, LeftUp, RightDown, RightUp, MiddleDown, MiddleUp)
                 uint clickFlags = 0;
                 switch (type)
                 {
@@ -293,40 +366,60 @@ namespace RotinaRemote.Input
                     case MouseEventType.MiddleUp:
                         clickFlags = MOUSEEVENTF_MIDDLEUP;
                         break;
-                    case MouseEventType.WheelVertical:
-                        clickFlags = MOUSEEVENTF_WHEEL;
-                        break;
                 }
 
                 if (clickFlags != 0)
                 {
-                    var clickInput = new INPUT
+                    uint clickDwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+
+                    // Despacha pacote atómico com 2 eventos em sequência:
+                    // 1. Move para a coordenada exata absX/absY (força hover, hit-testing e ativação da janela/controlo)
+                    // 2. Dispara o evento de clique do botão no ponto exato
+                    var inputs = new INPUT[2];
+                    inputs[0] = new INPUT
                     {
                         type = INPUT_MOUSE,
                         U = new InputUnion
                         {
                             mi = new MOUSEINPUT
                             {
-                                dx = 0,
-                                dy = 0,
-                                mouseData = (uint)wheelDelta,
-                                dwFlags = clickFlags,
+                                dx = absX,
+                                dy = absY,
+                                mouseData = 0,
+                                dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                                time = 0,
+                                dwExtraInfo = IntPtr.Zero
+                            }
+                        }
+                    };
+                    inputs[1] = new INPUT
+                    {
+                        type = INPUT_MOUSE,
+                        U = new InputUnion
+                        {
+                            mi = new MOUSEINPUT
+                            {
+                                dx = absX,
+                                dy = absY,
+                                mouseData = 0,
+                                dwFlags = clickDwFlags,
                                 time = 0,
                                 dwExtraInfo = IntPtr.Zero
                             }
                         }
                     };
 
-                    uint sent = SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
-                    if (sent == 1)
+                    uint sent = SendInput(2, inputs, Marshal.SizeOf(typeof(INPUT)));
+                    if (sent >= 1)
                     {
-                        AppLogger.LogInfo("RemoteSession", $"[HOST SUCCESS] SendInput disparado com SUCESSO para {type} em ({targetX}, {targetY}).");
+                        AppLogger.LogInfo("RemoteSession", $"[HOST SUCCESS] SendInput disparado com SUCESSO para {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}].");
                     }
                     else
                     {
                         int err = Marshal.GetLastWin32Error();
                         AppLogger.LogError("RemoteSession", $"[HOST ERROR] SendInput retornou 0 para {type} em ({targetX}, {targetY}) [Win32={err}]. A disparar fallback mouse_event...");
-                        mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+                        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                        mouse_event(clickDwFlags, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
                         AppLogger.LogInfo("RemoteSession", $"[HOST FALLBACK] Fallback mouse_event executado para {type} em ({targetX}, {targetY}).");
                     }
                 }
