@@ -54,6 +54,7 @@ namespace RotinaRemote.Client.ViewModels
 
         private string _myDeviceId = string.Empty;
         private string _targetDeviceId = string.Empty;
+        private string _targetPassword = string.Empty;
         private string _connectionStatus = "Pronto";
         private bool _isConnected;
         private int _selectedTabIndex = 0;
@@ -62,6 +63,28 @@ namespace RotinaRemote.Client.ViewModels
         private string _transportType = "Direto (P2P)";
         private string _diagnosticOutput = "Clique em 'Testar Conexão' para iniciar a verificação de diagnóstico.";
         private BitmapImage? _remoteScreenSource;
+        private string _activeIncomingPermission = "FullControl";
+
+        // As 15 Configurações Avançadas
+        private string _theme = "Dark";
+        private bool _enableUnattendedAccess = false;
+        private string _unattendedPassword = string.Empty;
+        private string _unattendedPermission = "FullControl";
+        private bool _startWithWindows = false;
+        private bool _minimizeToTray = true;
+        private int _videoQuality = 60;
+        private int _targetFps = 60;
+        private bool _disableRemoteWallpaper = false;
+        private bool _enableClipboardSync = true;
+        private bool _blockRemoteInput = false;
+        private int _p2pPort = 48270;
+        private int _lanDiscoveryPort = 48271;
+        private int _keepAliveIntervalMs = 3000;
+        private string _signalingServerUrl = "wss://rotinaremote-signaling-49575983278.europe-west1.run.app/ws";
+
+        // Estado do Serviço Windows
+        private string _serviceStatusText = "A verificar...";
+        private string _serviceStatusColor = "#94A3B8";
 
         public string MyDeviceId
         {
@@ -73,6 +96,12 @@ namespace RotinaRemote.Client.ViewModels
         {
             get => _targetDeviceId;
             set => SetProperty(ref _targetDeviceId, value);
+        }
+
+        public string TargetPassword
+        {
+            get => _targetPassword;
+            set => SetProperty(ref _targetPassword, value);
         }
 
         public string ConnectionStatus
@@ -123,6 +152,188 @@ namespace RotinaRemote.Client.ViewModels
             set => SetProperty(ref _remoteScreenSource, value);
         }
 
+        // 1. Tema Visual (Dark / Light)
+        public string Theme
+        {
+            get => _theme;
+            set
+            {
+                if (SetProperty(ref _theme, value))
+                {
+                    OnPropertyChanged(nameof(IsDarkMode));
+                    OnPropertyChanged(nameof(IsLightMode));
+                }
+            }
+        }
+
+        public bool IsDarkMode
+        {
+            get => _theme.Equals("Dark", StringComparison.OrdinalIgnoreCase);
+            set
+            {
+                if (value)
+                {
+                    Theme = "Dark";
+                    RotinaRemote.Client.Services.ThemeManager.ApplyTheme("Dark");
+                }
+            }
+        }
+
+        public bool IsLightMode
+        {
+            get => _theme.Equals("Light", StringComparison.OrdinalIgnoreCase);
+            set
+            {
+                if (value)
+                {
+                    Theme = "Light";
+                    RotinaRemote.Client.Services.ThemeManager.ApplyTheme("Light");
+                }
+            }
+        }
+
+        // 2. Acesso Não Supervisionado por Senha
+        public bool EnableUnattendedAccess
+        {
+            get => _enableUnattendedAccess;
+            set => SetProperty(ref _enableUnattendedAccess, value);
+        }
+
+        // 3. Senha de Acesso Remoto Imediato
+        public string UnattendedPassword
+        {
+            get => _unattendedPassword;
+            set => SetProperty(ref _unattendedPassword, value);
+        }
+
+        // 4. Permissões de Acesso Não Supervisionado ("FullControl" ou "OnlyRead")
+        public string UnattendedPermission
+        {
+            get => _unattendedPermission;
+            set
+            {
+                if (SetProperty(ref _unattendedPermission, value))
+                {
+                    OnPropertyChanged(nameof(IsFullControl));
+                    OnPropertyChanged(nameof(IsOnlyRead));
+                }
+            }
+        }
+
+        public bool IsFullControl
+        {
+            get => string.Equals(_unattendedPermission, "FullControl", StringComparison.OrdinalIgnoreCase);
+            set
+            {
+                if (value)
+                {
+                    UnattendedPermission = "FullControl";
+                }
+            }
+        }
+
+        public bool IsOnlyRead
+        {
+            get => string.Equals(_unattendedPermission, "OnlyRead", StringComparison.OrdinalIgnoreCase);
+            set
+            {
+                if (value)
+                {
+                    UnattendedPermission = "OnlyRead";
+                }
+            }
+        }
+
+        // 5. Iniciar com o Windows
+        public bool StartWithWindows
+        {
+            get => _startWithWindows;
+            set => SetProperty(ref _startWithWindows, value);
+        }
+
+        // 6. Minimizar para a Área de Notificação
+        public bool MinimizeToTray
+        {
+            get => _minimizeToTray;
+            set => SetProperty(ref _minimizeToTray, value);
+        }
+
+        // 7. Qualidade de Imagem / Compressão (30 a 95%)
+        public int VideoQuality
+        {
+            get => _videoQuality;
+            set => SetProperty(ref _videoQuality, value);
+        }
+
+        // 8. Taxa de Fotogramas por Segundo Alvo (15, 30, 60)
+        public int TargetFps
+        {
+            get => _targetFps;
+            set => SetProperty(ref _targetFps, value);
+        }
+
+        // 9. Desativar Papel de Parede Remoto
+        public bool DisableRemoteWallpaper
+        {
+            get => _disableRemoteWallpaper;
+            set => SetProperty(ref _disableRemoteWallpaper, value);
+        }
+
+        // 10. Sincronização de Clipboard
+        public bool EnableClipboardSync
+        {
+            get => _enableClipboardSync;
+            set => SetProperty(ref _enableClipboardSync, value);
+        }
+
+        // 11. Bloqueio de Entrada Local
+        public bool BlockRemoteInput
+        {
+            get => _blockRemoteInput;
+            set => SetProperty(ref _blockRemoteInput, value);
+        }
+
+        // 12. Porta TCP de Escuta P2P Direto
+        public int P2pPort
+        {
+            get => _p2pPort;
+            set => SetProperty(ref _p2pPort, value);
+        }
+
+        // 13. Porta UDP LAN
+        public int LanDiscoveryPort
+        {
+            get => _lanDiscoveryPort;
+            set => SetProperty(ref _lanDiscoveryPort, value);
+        }
+
+        // 14. Intervalo de KeepAlive / Heartbeat (ms)
+        public int KeepAliveIntervalMs
+        {
+            get => _keepAliveIntervalMs;
+            set => SetProperty(ref _keepAliveIntervalMs, value);
+        }
+
+        // 15. Servidor de Sinalização URL
+        public string SignalingServerUrl
+        {
+            get => _signalingServerUrl;
+            set => SetProperty(ref _signalingServerUrl, value);
+        }
+
+        // Estado do Serviço Windows
+        public string ServiceStatusText
+        {
+            get => _serviceStatusText;
+            set => SetProperty(ref _serviceStatusText, value);
+        }
+
+        public string ServiceStatusColor
+        {
+            get => _serviceStatusColor;
+            set => SetProperty(ref _serviceStatusColor, value);
+        }
+
         public ObservableCollection<ConnectionHistoryItem> History { get; } = new();
 
         public ICommand CopyIdCommand { get; }
@@ -131,19 +342,45 @@ namespace RotinaRemote.Client.ViewModels
         public ICommand RunDiagnosticsCommand { get; }
         public ICommand ExportDiagnosticsCommand { get; }
 
+        // Comandos de Definições Avançadas e Serviço
+        public ICommand SaveSettingsCommand { get; }
+        public ICommand ToggleThemeCommand { get; }
+        public ICommand InstallServiceCommand { get; }
+        public ICommand StartServiceCommand { get; }
+        public ICommand StopServiceCommand { get; }
+        public ICommand UninstallServiceCommand { get; }
+        public ICommand RefreshServiceStatusCommand { get; }
+
         public MainViewModel()
         {
             _config = AppConfig.Load();
             _identity = DeviceIdentity.LoadOrCreate();
             MyDeviceId = _identity.FormattedId;
 
+            // Carregar valores de configurações salvas
+            _theme = _config.Theme;
+            _enableUnattendedAccess = _config.EnableUnattendedAccess;
+            _unattendedPassword = _config.UnattendedPassword;
+            _unattendedPermission = _config.UnattendedPermission;
+            _startWithWindows = _config.StartWithWindows;
+            _minimizeToTray = _config.MinimizeToTray;
+            _videoQuality = _config.VideoQuality;
+            _targetFps = _config.TargetFps;
+            _disableRemoteWallpaper = _config.DisableRemoteWallpaper;
+            _enableClipboardSync = _config.EnableClipboardSync;
+            _blockRemoteInput = _config.BlockRemoteInput;
+            _p2pPort = _config.P2pPort;
+            _lanDiscoveryPort = _config.LanDiscoveryPort;
+            _keepAliveIntervalMs = _config.KeepAliveIntervalMs;
+            _signalingServerUrl = _config.SignalingServerUrl;
+
             _screenCapturer = new ScreenCapturer();
             _listener = new P2PTransportListener();
             _listener.ClientConnected += OnIncomingClientConnected;
-            _listener.Start(48270);
+            _listener.Start(_p2pPort);
 
             _lanDiscovery = new LanDiscoveryService();
-            _lanDiscovery.Start(_identity.RawId, 48270);
+            _lanDiscovery.Start(_identity.RawId, _lanDiscoveryPort);
 
             _signalingClient = new SignalingClient();
             _signalingClient.ConnectRequestReceived += OnSignalingConnectRequestReceived;
@@ -154,6 +391,118 @@ namespace RotinaRemote.Client.ViewModels
             DisconnectCommand = new RelayCommand(Disconnect);
             RunDiagnosticsCommand = new RelayCommand(RunDiagnostics);
             ExportDiagnosticsCommand = new RelayCommand(ExportDiagnostics);
+
+            SaveSettingsCommand = new RelayCommand(SaveSettings);
+            ToggleThemeCommand = new RelayCommand(ToggleTheme);
+            InstallServiceCommand = new RelayCommand(InstallService);
+            StartServiceCommand = new RelayCommand(StartService);
+            StopServiceCommand = new RelayCommand(StopService);
+            UninstallServiceCommand = new RelayCommand(UninstallService);
+            RefreshServiceStatusCommand = new RelayCommand(RefreshServiceStatus);
+
+            RefreshServiceStatus();
+        }
+
+        public void RefreshServiceStatus()
+        {
+            Task.Run(() =>
+            {
+                var status = RotinaRemote.Client.Services.WindowsServiceManager.GetStatus();
+                System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    switch (status)
+                    {
+                        case RotinaRemote.Client.Services.ServiceStatusEnum.Running:
+                            ServiceStatusText = "Em Execução (Ativo)";
+                            ServiceStatusColor = "#10B981";
+                            break;
+                        case RotinaRemote.Client.Services.ServiceStatusEnum.Stopped:
+                            ServiceStatusText = "Parado";
+                            ServiceStatusColor = "#EF4444";
+                            break;
+                        case RotinaRemote.Client.Services.ServiceStatusEnum.NotInstalled:
+                            ServiceStatusText = "Não Instalado";
+                            ServiceStatusColor = "#94A3B8";
+                            break;
+                        default:
+                            ServiceStatusText = "Desconhecido";
+                            ServiceStatusColor = "#F59E0B";
+                            break;
+                    }
+                });
+            });
+        }
+
+        private void InstallService()
+        {
+            var (success, msg) = RotinaRemote.Client.Services.WindowsServiceManager.InstallService();
+            MessageBox.Show(msg, "Serviço Windows", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            RefreshServiceStatus();
+        }
+
+        private void StartService()
+        {
+            var (success, msg) = RotinaRemote.Client.Services.WindowsServiceManager.StartService();
+            MessageBox.Show(msg, "Serviço Windows", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            Task.Delay(1000).ContinueWith(_ => RefreshServiceStatus());
+        }
+
+        private void StopService()
+        {
+            var (success, msg) = RotinaRemote.Client.Services.WindowsServiceManager.StopService();
+            MessageBox.Show(msg, "Serviço Windows", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            Task.Delay(1000).ContinueWith(_ => RefreshServiceStatus());
+        }
+
+        private void UninstallService()
+        {
+            var (success, msg) = RotinaRemote.Client.Services.WindowsServiceManager.UninstallService();
+            MessageBox.Show(msg, "Serviço Windows", MessageBoxButton.OK, success ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            Task.Delay(1000).ContinueWith(_ => RefreshServiceStatus());
+        }
+
+        private void ToggleTheme()
+        {
+            if (Theme.Equals("Dark", StringComparison.OrdinalIgnoreCase))
+            {
+                Theme = "Light";
+                RotinaRemote.Client.Services.ThemeManager.ApplyTheme("Light");
+            }
+            else
+            {
+                Theme = "Dark";
+                RotinaRemote.Client.Services.ThemeManager.ApplyTheme("Dark");
+            }
+        }
+
+        private void SaveSettings()
+        {
+            try
+            {
+                _config.Theme = Theme;
+                _config.EnableUnattendedAccess = EnableUnattendedAccess;
+                _config.UnattendedPassword = UnattendedPassword;
+                _config.UnattendedPermission = UnattendedPermission;
+                _config.StartWithWindows = StartWithWindows;
+                _config.MinimizeToTray = MinimizeToTray;
+                _config.VideoQuality = VideoQuality;
+                _config.TargetFps = TargetFps;
+                _config.DisableRemoteWallpaper = DisableRemoteWallpaper;
+                _config.EnableClipboardSync = EnableClipboardSync;
+                _config.BlockRemoteInput = BlockRemoteInput;
+                _config.P2pPort = P2pPort;
+                _config.LanDiscoveryPort = LanDiscoveryPort;
+                _config.KeepAliveIntervalMs = KeepAliveIntervalMs;
+                _config.SignalingServerUrl = SignalingServerUrl;
+
+                _config.Save();
+                RotinaRemote.Client.Services.ThemeManager.ApplyTheme(Theme);
+                MessageBox.Show("Configurações guardadas com sucesso no disco!", "RotinaRemote", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erro ao guardar configurações: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private async void OnSignalingConnectRequestReceived(string sourceId, string targetId, string payload)
@@ -166,9 +515,10 @@ namespace RotinaRemote.Client.ViewModels
                 string callerCountry = "Desconhecido";
                 string callerLocation = "Desconhecida";
 
+                SignalingConnectRequestPayload? req = null;
                 try
                 {
-                    var req = MessageSerializer.DeserializeJson<SignalingConnectRequestPayload>(System.Text.Encoding.UTF8.GetBytes(payload));
+                    req = MessageSerializer.DeserializeJson<SignalingConnectRequestPayload>(System.Text.Encoding.UTF8.GetBytes(payload));
                     if (req != null)
                     {
                         callerId = !string.IsNullOrWhiteSpace(req.CallerDeviceId) ? req.CallerDeviceId : sourceId;
@@ -181,11 +531,28 @@ namespace RotinaRemote.Client.ViewModels
                 catch { }
 
                 bool isApproved = false;
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+
+                if (_config.EnableUnattendedAccess &&
+                    !string.IsNullOrWhiteSpace(_config.UnattendedPassword) &&
+                    !string.IsNullOrWhiteSpace(req?.Password) &&
+                    req.Password == _config.UnattendedPassword)
                 {
-                    var dialog = new Views.PermissionDialogWindow(callerId, callerIp, callerCity, callerCountry, callerLocation);
-                    isApproved = dialog.ShowDialog() == true && dialog.IsApproved;
-                });
+                    isApproved = true;
+                    _activeIncomingPermission = _config.UnattendedPermission;
+                    AppLogger.LogInfo("MainViewModel", $"Pedido de ligação de {callerId} ({callerCity}, {callerCountry}) aprovado via Acesso Não Supervisionado por Senha (Permissão: {_activeIncomingPermission}).");
+                }
+                else
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        var dialog = new Views.PermissionDialogWindow(callerId, callerIp, callerCity, callerCountry, callerLocation);
+                        isApproved = dialog.ShowDialog() == true && dialog.IsApproved;
+                    });
+                    if (isApproved)
+                    {
+                        _activeIncomingPermission = "FullControl";
+                    }
+                }
 
                 if (!isApproved)
                 {
@@ -218,9 +585,10 @@ namespace RotinaRemote.Client.ViewModels
                     Accepted = true,
                     LocalIp = _lanDiscovery.LocalIP ?? "",
                     PublicIp = publicIp,
-                    Port = 48270,
+                    Port = _p2pPort,
                     RelaySessionId = relaySessionId,
-                    RelayServerUrl = _config.RelayServerUrl
+                    RelayServerUrl = _config.RelayServerUrl,
+                    PermissionMode = _activeIncomingPermission
                 };
 
                 string jsonPayload = System.Text.Json.JsonSerializer.Serialize(endpointData);
@@ -335,16 +703,61 @@ namespace RotinaRemote.Client.ViewModels
                 catch { }
             }
 
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            var session = new ConnectionSession(socket);
+            bool isApproved = false;
+
+            if (_config.EnableUnattendedAccess && !string.IsNullOrWhiteSpace(_config.UnattendedPassword))
             {
-                var dialog = new Views.PermissionDialogWindow(resolvedId, remoteIp, city, country, location);
-                if (dialog.ShowDialog() == true && dialog.IsApproved)
+                var hsTcs = new TaskCompletionSource<string?>();
+                Action<PacketFrame> hsHandler = f =>
                 {
-                    var session = new ConnectionSession(socket);
+                    if (f.Channel == ChannelType.Control && f.Payload.Length > 0)
+                    {
+                        try
+                        {
+                            var hs = MessageSerializer.DeserializeJson<HandshakeRequestPayload>(f.Payload);
+                            hsTcs.TrySetResult(hs?.Password);
+                        }
+                        catch { }
+                    }
+                };
+                session.FrameReceived += hsHandler;
+                var completed = await Task.WhenAny(hsTcs.Task, Task.Delay(1200));
+                session.FrameReceived -= hsHandler;
+
+                if (completed == hsTcs.Task && hsTcs.Task.Result == _config.UnattendedPassword)
+                {
+                    isApproved = true;
+                    _activeIncomingPermission = _config.UnattendedPermission;
+                    AppLogger.LogInfo("MainViewModel", $"Ligação P2P direta de {resolvedId} aprovada via Senha de Acesso Não Supervisionado ({_activeIncomingPermission}).");
+                }
+            }
+
+            if (!isApproved)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var dialog = new Views.PermissionDialogWindow(resolvedId, remoteIp, city, country, location);
+                    isApproved = dialog.ShowDialog() == true && dialog.IsApproved;
+                    if (isApproved)
+                    {
+                        _activeIncomingPermission = "FullControl";
+                    }
+                });
+            }
+
+            if (isApproved)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
                     _incomingSession = session;
                     session.FrameReceived += OnInputFrameReceivedFromClient;
                     session.Disconnected += () =>
                     {
+                        if (_config.BlockRemoteInput)
+                        {
+                            InputInjector.SetBlockLocalInput(false);
+                        }
                         _incomingSession = null;
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
                         {
@@ -353,18 +766,25 @@ namespace RotinaRemote.Client.ViewModels
                     };
                     ConnectionStatus = "Sessão Ativa com " + resolvedId;
                     StartHostScreenStreaming(session);
-                }
-                else
-                {
-                    try { socket.Close(); } catch { }
-                }
-            });
+                });
+            }
+            else
+            {
+                try { session.Dispose(); } catch { }
+                try { socket.Close(); } catch { }
+            }
         }
 
         private void OnInputFrameReceivedFromClient(PacketFrame frame)
         {
             if (frame.Channel == ChannelType.Input && frame.Payload.Length > 0)
             {
+                if (string.Equals(_activeIncomingPermission, "OnlyRead", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Apenas Leitura (Only Read) ativo: ignorar entradas remotas de rato e teclado
+                    return;
+                }
+
                 try
                 {
                     var inputPayload = MessageSerializer.DeserializeJson<InputPacketPayload>(frame.Payload);
@@ -482,14 +902,23 @@ namespace RotinaRemote.Client.ViewModels
             _streamingCts = new CancellationTokenSource();
             var token = _streamingCts.Token;
 
+            if (_config.BlockRemoteInput)
+            {
+                InputInjector.SetBlockLocalInput(true);
+            }
+
             Task.Run(async () =>
             {
                 uint frameSeq = 0;
+                long quality = (long)Math.Clamp(_config.VideoQuality, 30, 95);
+                int targetFps = Math.Clamp(_config.TargetFps, 10, 60);
+                int frameDelay = Math.Max(10, 1000 / targetFps);
+
                 while (!token.IsCancellationRequested && session.IsConnected)
                 {
                     try
                     {
-                        var frame = _screenCapturer.CaptureNextFrame(60L);
+                        var frame = _screenCapturer.CaptureNextFrame(quality);
                         if (frame != null && frame.CompressedData.Length > 0)
                         {
                             frameSeq++;
@@ -501,7 +930,12 @@ namespace RotinaRemote.Client.ViewModels
                     {
                         AppLogger.LogError("MainViewModel", "Erro ao enviar frame de ecrã", ex);
                     }
-                    await Task.Delay(33, token);
+                    await Task.Delay(frameDelay, token);
+                }
+
+                if (_config.BlockRemoteInput)
+                {
+                    InputInjector.SetBlockLocalInput(false);
                 }
             }, token);
         }
@@ -620,7 +1054,8 @@ namespace RotinaRemote.Client.ViewModels
                         CallerIp = myGeo.Ip,
                         City = myGeo.City,
                         Country = myGeo.Country,
-                        Location = myGeo.Location
+                        Location = myGeo.Location,
+                        Password = TargetPassword?.Trim() ?? string.Empty
                     };
                     string reqJson = System.Text.Json.JsonSerializer.Serialize(reqPayload);
                     var signalingPayload = await _signalingClient.ResolveViaSignalingAsync(parsedId.RawValue, TimeSpan.FromSeconds(35), reqJson);
@@ -762,6 +1197,20 @@ namespace RotinaRemote.Client.ViewModels
             if (activeSession == null && activeSocket != null)
             {
                 activeSession = new ConnectionSession(activeSocket);
+                if (!string.IsNullOrWhiteSpace(TargetPassword))
+                {
+                    try
+                    {
+                        var hs = new HandshakeRequestPayload
+                        {
+                            ClientDeviceId = _identity.FormattedId,
+                            Password = TargetPassword.Trim()
+                        };
+                        var hsBytes = MessageSerializer.SerializeJson(hs);
+                        _ = activeSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, hsBytes));
+                    }
+                    catch { }
+                }
             }
 
             if (activeSession != null)

@@ -1,5 +1,8 @@
 using System;
+using System.ServiceProcess;
 using System.Windows;
+using RotinaRemote.Client.Services;
+using RotinaRemote.Core.Configuration;
 using RotinaRemote.Core.Logging;
 
 using Application = System.Windows.Application;
@@ -19,8 +22,6 @@ namespace RotinaRemote.Client
 
             base.OnStartup(e);
 
-            AppLogger.LogInfo("App", "RotinaRemote Client iniciando...");
-
             AppDomain.CurrentDomain.UnhandledException += (s, args) =>
             {
                 if (args.ExceptionObject is Exception ex)
@@ -39,6 +40,24 @@ namespace RotinaRemote.Client
                     Current.Shutdown();
                 }
             };
+
+            // Se iniciado em modo Serviço Windows via SCM
+            if (Array.Exists(e.Args, a => a.Equals("--service", StringComparison.OrdinalIgnoreCase)))
+            {
+                AppLogger.LogInfo("App", "RotinaRemote iniciado em modo Serviço Windows.");
+                ServiceBase.Run(new RotinaRemoteWindowsService());
+                Shutdown();
+                return;
+            }
+
+            AppLogger.LogInfo("App", "RotinaRemote Client iniciando...");
+
+            var config = AppConfig.Load();
+            ThemeManager.ApplyTheme(config.Theme);
+
+            var mainWindow = new Views.MainWindow();
+            MainWindow = mainWindow;
+            mainWindow.Show();
         }
     }
 }

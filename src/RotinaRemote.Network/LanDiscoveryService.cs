@@ -18,7 +18,7 @@ namespace RotinaRemote.Network
         public DateTime LastSeen { get; set; } = DateTime.UtcNow;
     }
 
-    public class LanDiscoveryService
+    public class LanDiscoveryService : IDisposable
     {
         private const int DiscoveryPort = 48271;
         private UdpClient? _udpListener;
@@ -334,6 +334,11 @@ namespace RotinaRemote.Network
             _cts?.Cancel();
             try { _udpListener?.Close(); } catch { }
             _udpListener = null;
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }

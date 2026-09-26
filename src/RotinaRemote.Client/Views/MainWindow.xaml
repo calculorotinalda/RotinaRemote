@@ -2,11 +2,12 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:RotinaRemote.Client.ViewModels"
-        Title="RotinaRemote — Acesso Remoto Profissional" Height="700" Width="1050"
+        Title="RotinaRemote — Acesso Remoto Profissional" Height="740" Width="1080"
+        MinHeight="650" MinWidth="950"
         Icon="pack://application:,,,/icon.ico"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource PrimaryBackground}"
-        Foreground="{StaticResource TextPrimary}"
+        Background="{DynamicResource PrimaryBackground}"
+        Foreground="{DynamicResource TextPrimary}"
         KeyDown="OnWindowKeyDown"
         KeyUp="OnWindowKeyUp">
 
@@ -21,27 +22,29 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Cabeçalho -->
-        <Border Grid.Row="0" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+        <!-- Cabeçalho Principal -->
+        <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                    <TextBlock Text="ROTINA" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" VerticalAlignment="Center"/>
-                    <TextBlock Text="REMOTE" FontSize="20" FontWeight="Light" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center"/>
-                    <Border Background="{StaticResource AccentGreen}" CornerRadius="4" Padding="6,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="ROTINA" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" VerticalAlignment="Center"/>
+                    <TextBlock Text="REMOTE" FontSize="20" FontWeight="Light" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <Border Background="{DynamicResource AccentGreen}" CornerRadius="4" Padding="6,2" Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="PROFESSIONAL" FontSize="10" FontWeight="Bold" Foreground="White" />
                     </Border>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <Ellipse Width="10" Height="10" Fill="{StaticResource AccentGreen}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding ConnectionStatus}" FontSize="13" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" />
+                    <Button Content="Alternar Tema" Command="{Binding ToggleThemeCommand}" Background="Transparent" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Foreground="{DynamicResource TextPrimary}" Padding="10,4" Margin="0,0,16,0" VerticalAlignment="Center"/>
+                    <Ellipse Width="10" Height="10" Fill="{DynamicResource AccentGreen}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ConnectionStatus}" FontSize="13" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <!-- Conteúdo Principal com TabControl -->
         <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
-            <!-- Separador 1: Meu Computador & Ligação -->
+            
+            <!-- Separador 1: Início / Ligação -->
             <TabItem Header="Início / Ligação" FontSize="14" FontWeight="SemiBold">
                 <Grid Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
@@ -50,36 +53,49 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Cartão: Este Computador -->
-                    <Border Grid.Column="0" Background="{StaticResource SecondaryBackground}" CornerRadius="10" Padding="24" Margin="0,0,12,0">
+                    <Border Grid.Column="0" Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="24" Margin="0,0,12,0">
                         <StackPanel>
-                            <TextBlock Text="Este Computador" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
-                            <TextBlock Text="Partilhe este ID com o técnico para permitir assistência ao seu dispositivo." FontSize="12" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,24" />
+                            <TextBlock Text="Este Computador" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" />
+                            <TextBlock Text="Partilhe este ID com o técnico para permitir assistência remota ao seu computador." FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,24" />
 
-                            <TextBlock Text="MEU ID" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4" />
-                            <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
-                                <TextBlock Text="{Binding MyDeviceId}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" HorizontalAlignment="Center" />
+                            <TextBlock Text="MEU ID" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4" />
+                            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+                                <TextBlock Text="{Binding MyDeviceId}" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" HorizontalAlignment="Center" />
                             </Border>
 
                             <Button Content="Copiar ID" Command="{Binding CopyIdCommand}" HorizontalAlignment="Center" Width="140" Height="36"/>
+
+                            <Separator Margin="0,24,0,16" Background="{DynamicResource BorderColor}" />
+
+                            <!-- Informação de Acesso Não Supervisionado -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse Width="10" Height="10" Fill="{Binding EnableUnattendedAccess, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,8,0" />
+                                <TextBlock Text="Acesso por Palavra-passe: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock Text="Ativo" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" FontSize="12" Visibility="{Binding EnableUnattendedAccess, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                <TextBlock Text="Desativado" FontWeight="Normal" Foreground="{DynamicResource TextSecondary}" FontSize="12" Margin="4,0,0,0" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <!-- Cartão: Computador Remoto -->
-                    <Border Grid.Column="1" Background="{StaticResource SecondaryBackground}" CornerRadius="10" Padding="24" Margin="12,0,0,0">
+                    <Border Grid.Column="1" Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="24" Margin="12,0,0,0">
                         <StackPanel>
-                            <TextBlock Text="Computador Remoto" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8" />
-                            <TextBlock Text="Introduza o ID do computador a que pretende aceder remotamente." FontSize="12" Foreground="{StaticResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,24" />
+                            <TextBlock Text="Computador Remoto" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,8" />
+                            <TextBlock Text="Introduza o ID do dispositivo a que pretende ligar-se remotamente." FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,20" />
 
-                            <TextBlock Text="ID REMOTO" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding TargetDeviceId, UpdateSourceTrigger=PropertyChanged}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" Background="{StaticResource CardBackground}" BorderThickness="1" BorderBrush="{StaticResource AccentBlue}" Padding="12,10" Margin="0,0,0,20" HorizontalContentAlignment="Center"/>
+                            <TextBlock Text="ID REMOTO" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding TargetDeviceId, UpdateSourceTrigger=PropertyChanged}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource AccentBlue}" Padding="12,10" Margin="0,0,0,16" HorizontalContentAlignment="Center"/>
 
-                            <Button Content="LIGAR" Command="{Binding ConnectCommand}" Background="{StaticResource AccentGreen}" FontSize="15" Height="42" HorizontalAlignment="Stretch" />
+                            <TextBlock Text="PALAVRA-PASSE (opcional para acesso não supervisionado)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding TargetPassword, UpdateSourceTrigger=PropertyChanged}" FontSize="15" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="10,8" Margin="0,0,0,24" HorizontalContentAlignment="Center"/>
+
+                            <Button Content="LIGAR AO DISPOSITIVO" Command="{Binding ConnectCommand}" Background="{DynamicResource AccentGreen}" FontSize="15" Height="44" HorizontalAlignment="Stretch" />
                         </StackPanel>
                     </Border>
                 </Grid>
             </TabItem>
 
-            <!-- Separador 2: Visualizador da Sessão Remota -->
+            <!-- Separador 2: Sessão Remota -->
             <TabItem Header="Sessão Remota" FontSize="14" FontWeight="SemiBold">
                 <Grid Margin="0,16,0,0">
                     <Grid.RowDefinitions>
@@ -92,33 +108,33 @@
                             <!-- Visualizador de Ecrã Remoto em Tempo Real -->
                             <Image x:Name="RemoteScreenImage" Source="{Binding RemoteScreenSource}" Stretch="Uniform" Focusable="True" MouseMove="OnRemoteScreenMouseMove" PreviewMouseDown="OnRemoteScreenMouseDown" PreviewMouseUp="OnRemoteScreenMouseUp" MouseWheel="OnRemoteScreenMouseWheel" />
 
-                            <!-- Overlay quando sem imagem -->
+                            <!-- Overlay quando sem ligação ativa -->
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsConnected, Converter={StaticResource BooleanToVisibilityConverter}}" IsHitTestVisible="False">
                                 <Border Background="#CC000000" CornerRadius="8" Padding="16,10" HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="12" Height="12" Fill="{StaticResource AccentRed}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                        <TextBlock Text="🔴 ACESSO REMOTO ATIVO" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                                        <Ellipse Width="12" Height="12" Fill="{DynamicResource AccentRed}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="🔴 ACESSO REMOTO EM CURSO" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- Toolbar da Sessão -->
-                    <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}" CornerRadius="6" Padding="12,8" Margin="0,8,0,0">
+                    <!-- Barra de Informações da Sessão -->
+                    <Border Grid.Row="1" Background="{DynamicResource SecondaryBackground}" CornerRadius="6" Padding="12,8" Margin="0,8,0,0">
                         <DockPanel>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <TextBlock Text="Transporte: " FontSize="12" Foreground="{StaticResource TextSecondary}" />
-                                <TextBlock Text="{Binding TransportType}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" Margin="0,0,16,0" />
+                                <TextBlock Text="Transporte: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock Text="{Binding TransportType}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,16,0" />
 
-                                <TextBlock Text="Latência: " FontSize="12" Foreground="{StaticResource TextSecondary}" />
-                                <TextBlock Text="{Binding LatencyMs, StringFormat='{}{0} ms'}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,0,16,0" />
+                                <TextBlock Text="Latência: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock Text="{Binding LatencyMs, StringFormat='{}{0} ms'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" Margin="0,0,16,0" />
 
-                                <TextBlock Text="FPS: " FontSize="12" Foreground="{StaticResource TextSecondary}" />
-                                <TextBlock Text="{Binding Fps}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimary}" />
+                                <TextBlock Text="FPS: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock Text="{Binding Fps}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
                             </StackPanel>
 
-                            <Button Content="Desconectar" Command="{Binding DisconnectCommand}" Background="{StaticResource AccentRed}" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="12,4"/>
+                            <Button Content="Desconectar" Command="{Binding DisconnectCommand}" Background="{DynamicResource AccentRed}" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="14,4"/>
                         </DockPanel>
                     </Border>
                 </Grid>
@@ -127,7 +143,7 @@
             <!-- Separador 3: Histórico -->
             <TabItem Header="Histórico" FontSize="14" FontWeight="SemiBold">
                 <Grid Margin="0,16,0,0">
-                    <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" Background="{StaticResource SecondaryBackground}" Foreground="{StaticResource TextPrimary}" RowBackground="{StaticResource SecondaryBackground}" AlternatingRowBackground="{StaticResource CardBackground}" BorderThickness="0">
+                    <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" Background="{DynamicResource SecondaryBackground}" Foreground="{DynamicResource TextPrimary}" RowBackground="{DynamicResource SecondaryBackground}" AlternatingRowBackground="{DynamicResource CardBackground}" BorderThickness="0">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="ID Remoto" Binding="{Binding RemoteId}" Width="150" />
                             <DataGridTextColumn Header="Nome do Dispositivo" Binding="{Binding RemoteName}" Width="220" />
@@ -148,7 +164,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <TextBox Grid.Row="0" Text="{Binding DiagnosticOutput}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="13" Background="{StaticResource SecondaryBackground}" Foreground="{StaticResource TextPrimary}" BorderThickness="1" BorderBrush="{StaticResource CardBackground}" Padding="12" />
+                    <TextBox Grid.Row="0" Text="{Binding DiagnosticOutput}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="13" Background="{DynamicResource SecondaryBackground}" Foreground="{DynamicResource TextPrimary}" BorderThickness="1" BorderBrush="{DynamicResource CardBackground}" Padding="12" />
 
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                         <Button Content="Testar Conexão" Command="{Binding RunDiagnosticsCommand}" Width="140" Height="36"/>
@@ -156,13 +172,243 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
+
+            <!-- Separador 5: Configurações Avançadas (15 Configurações + Serviço Windows) -->
+            <TabItem Header="Configurações Avançadas" FontSize="14" FontWeight="SemiBold">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0" Padding="0,0,8,0">
+                    <StackPanel>
+
+                        <!-- Cartão 1: Aspeto & Sistema (Configurações 1, 5, 6) -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="🎨 Aspeto e Sistema Operativo" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,0,12" />
+                                
+                                <!-- Configuração 1: Tema Dark / Light -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="1. Tema Visual (Dark Mode / Light Mode)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Alterna entre o modo escuro (Dark) e o modo claro (Light)." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <RadioButton Content="Escuro (Dark)" IsChecked="{Binding IsDarkMode, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                                        <RadioButton Content="Claro (Light)" IsChecked="{Binding IsLightMode, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 5: Arrancar com Windows -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="5. Iniciar Automaticamente com o Windows" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Inicia o RotinaRemote no arranque da sessão do Windows." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding StartWithWindows, Mode=TwoWay}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 6: Minimizar para o Tray -->
+                                <DockPanel Margin="0,4,0,4">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="6. Minimizar para a Área de Notificação (System Tray)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Mantém a aplicação ativa junto ao relógio do Windows quando fechada ou minimizada." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding MinimizeToTray, Mode=TwoWay}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cartão 2: Acesso Não Supervisionado por Senha (Configurações 2, 3, 4) -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="🔑 Acesso Não Supervisionado por Senha" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" Margin="0,0,0,12" />
+                                
+                                <!-- Configuração 2: Ativar Acesso Não Supervisionado -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="2. Ativar Acesso Imediato por Senha" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Permite conexão imediata através de uma senha definida sem precisar de aceitar na janela." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding EnableUnattendedAccess, Mode=TwoWay}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 3: Palavra-passe de Acesso Imediato -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="500">
+                                        <TextBlock Text="3. Palavra-passe de Acesso Remoto Imediato" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Senha exigida ao técnico ou cliente remoto para aceder a este computador." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <TextBox Text="{Binding UnattendedPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="220" FontSize="13" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 4: Permissões de Acesso -->
+                                <DockPanel Margin="0,4,0,4">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="4. Nível de Permissões para Acesso Não Supervisionado" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Escolha se a ligação por senha permite controlo ativo ou apenas visualização de ecrã." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <RadioButton Content="Controlo Total (Full Control)" IsChecked="{Binding IsFullControl, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                                        <RadioButton Content="Apenas Leitura (Only Read)" IsChecked="{Binding IsOnlyRead, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cartão 3: Instalar como Serviço Windows (RotinaRemote Portable Service) -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,12">
+                                    <TextBlock Text="⚙️ Gestor de Serviço Windows (RotinaRemote Service)" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <TextBlock Text="Estado: " FontSize="13" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding ServiceStatusText}" FontSize="13" FontWeight="Bold" Foreground="{Binding ServiceStatusColor}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <Button Content="↻" Command="{Binding RefreshServiceStatusCommand}" ToolTip="Atualizar Estado do Serviço" Padding="8,2" Height="28"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <TextBlock Text="Instalar o RotinaRemote Portable como um Serviço nativo do Windows permite assistência contínua mesmo com a sessão bloqueada ou utilizador desconectado." FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,0,0,16" />
+
+                                <WrapPanel Orientation="Horizontal">
+                                    <Button Content="Instalar como Serviço" Command="{Binding InstallServiceCommand}" Background="{DynamicResource AccentBlue}" Margin="0,0,10,8" Padding="14,8"/>
+                                    <Button Content="Iniciar Serviço" Command="{Binding StartServiceCommand}" Background="{DynamicResource AccentGreen}" Margin="0,0,10,8" Padding="14,8"/>
+                                    <Button Content="Parar Serviço" Command="{Binding StopServiceCommand}" Background="#F59E0B" Margin="0,0,10,8" Padding="14,8"/>
+                                    <Button Content="Desinstalar Serviço" Command="{Binding UninstallServiceCommand}" Background="{DynamicResource AccentRed}" Margin="0,0,10,8" Padding="14,8"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cartão 4: Transmissão & Desempenho (Configurações 7, 8, 9, 10, 11) -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="🚀 Transmissão de Vídeo &amp; Desempenho" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,0,12" />
+
+                                <!-- Configuração 7: Qualidade de Vídeo -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="500">
+                                        <TextBlock Text="7. Qualidade de Imagem / Compressão (30% a 95%)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Valores mais altos aumentam a nitidez; valores mais baixos poupam largura de banda." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <Slider Value="{Binding VideoQuality, Mode=TwoWay}" Minimum="30" Maximum="95" Width="180" SmallChange="5" LargeChange="10" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBlock Text="{Binding VideoQuality, StringFormat='{}{0}%'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Width="45" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 8: Taxa de Fotogramas (FPS) -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="500">
+                                        <TextBlock Text="8. Taxa de Fotogramas por Segundo Alvo (FPS)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Fluidez da transmissão (15 FPS = Económico, 30 FPS = Padrão, 60 FPS = Máxima Fluidez)." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <ComboBox SelectedValue="{Binding TargetFps, Mode=TwoWay}" SelectedValuePath="Tag" Width="140" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <ComboBoxItem Content="15 FPS (Poupança)" Tag="15" />
+                                        <ComboBoxItem Content="30 FPS (Equilibrado)" Tag="30" />
+                                        <ComboBoxItem Content="60 FPS (Ultra Fluido)" Tag="60" />
+                                    </ComboBox>
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 9: Ocultar Papel de Parede Remoto -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="9. Desativar Papel de Parede Remoto" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Substitui o papel de parede por fundo preto durante a sessão para máxima velocidade." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding DisableRemoteWallpaper, Mode=TwoWay}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 10: Sincronização de Clipboard -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="10. Sincronização da Área de Transferência (Clipboard)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Permite copiar e colar texto e conteúdos entre o computador local e o remoto." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding EnableClipboardSync, Mode=TwoWay}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 11: Bloqueio de Entrada Local -->
+                                <DockPanel Margin="0,4,0,4">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="11. Bloquear Entrada Local Durante a Sessão" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Desativa temporariamente o teclado e rato físico do computador anfitrião durante o controlo." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding BlockRemoteInput, Mode=TwoWay}" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cartão 5: Rede & Sinalização (Configurações 12, 13, 14, 15) -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="🌐 Rede, Protocolo &amp; Sinalização" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,0,12" />
+
+                                <!-- Configuração 12: Porta P2P TCP -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="500">
+                                        <TextBlock Text="12. Porta TCP de Escuta P2P Direto" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Porta de ligação direta peer-to-peer (Predefinição: 48270)." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <TextBox Text="{Binding P2pPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="120" FontSize="13" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 13: Porta UDP Descoberta LAN -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="500">
+                                        <TextBlock Text="13. Porta UDP do Serviço de Descoberta LAN" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Porta de broadcast/multicast para localização de peers na rede local (Predefinição: 48271)." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <TextBox Text="{Binding LanDiscoveryPort, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="120" FontSize="13" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 14: Intervalo KeepAlive -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="500">
+                                        <TextBlock Text="14. Intervalo de KeepAlive / Heartbeat (ms)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Frequência de envio de pacotes de verificação de liveness da conexão (Predefinição: 3000 ms)." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <TextBox Text="{Binding KeepAliveIntervalMs, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="120" FontSize="13" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <!-- Configuração 15: Servidor de Sinalização URL -->
+                                <DockPanel Margin="0,4,0,4">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="400">
+                                        <TextBlock Text="15. Servidor de Sinalização na Nuvem" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Endereço WebSocket do servidor de handshake e rendezvous." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <TextBox Text="{Binding SignalingServerUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="360" FontSize="12" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Botão de Guardar Configurações -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="16" Margin="0,0,0,16">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="As configurações são guardadas permanentemente em config.json." FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                </StackPanel>
+                                <Button Content="💾 GUARDAR CONFIGURAÇÕES" Command="{Binding SaveSettingsCommand}" Background="{DynamicResource AccentGreen}" FontSize="14" FontWeight="Bold" Padding="20,10" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                            </DockPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
         </TabControl>
 
         <!-- Barrita de Rodapé -->
         <Border Grid.Row="2" Margin="0,12,0,0">
             <DockPanel>
-                <TextBlock Text="RotinaRemote v1.0.0 — Todos os direitos reservados" FontSize="11" Foreground="{StaticResource TextSecondary}" DockPanel.Dock="Left" />
-                <TextBlock Text="C# .NET 8 WPF Nativo" FontSize="11" Foreground="{StaticResource TextSecondary}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
+                <TextBlock Text="RotinaRemote v1.0.0 — Todos os direitos reservados" FontSize="11" Foreground="{DynamicResource TextSecondary}" DockPanel.Dock="Left" />
+                <TextBlock Text="C# .NET 8 WPF Nativo | Suporte a Serviço Windows" FontSize="11" Foreground="{DynamicResource TextSecondary}" DockPanel.Dock="Right" HorizontalAlignment="Right" />
             </DockPanel>
         </Border>
     </Grid>

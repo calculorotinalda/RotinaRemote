@@ -9,7 +9,7 @@ using RotinaRemote.Core.Logging;
 
 namespace RotinaRemote.Network
 {
-    public class SignalingClient
+    public class SignalingClient : IDisposable
     {
         private ClientWebSocket? _ws;
         private CancellationTokenSource? _cts;
@@ -241,6 +241,11 @@ namespace RotinaRemote.Network
             try { _ws?.Dispose(); } catch { }
             _ws = null;
             _isRegistered = false;
+        }
+
+        public void Dispose()
+        {
+            Stop();
         }
     }
 }

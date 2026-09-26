@@ -113,6 +113,11 @@ try {
     if (Test-Path $SingleSource) {
         Copy-Item -Path $SingleSource -Destination $SingleDest -Force
         Copy-Item -Path $SingleSource -Destination $SinglePortableDest -Force
+        $DesktopPortable = "C:\Users\alll\Desktop\RotinaRemote-Portable.exe"
+        if (Test-Path $DesktopPortable) {
+            Copy-Item -Path $SingleSource -Destination $DesktopPortable -Force
+            Write-Host "     Executável sincronizado no Ambiente de Trabalho: $DesktopPortable" -ForegroundColor Green
+        }
         Write-Host "     Executável Portable Single-File criado em: $SinglePortableDest" -ForegroundColor Green
         [void]$LogBuilder.AppendLine("SingleFile EXE:")
         [void]$LogBuilder.AppendLine($SinglePortableDest)

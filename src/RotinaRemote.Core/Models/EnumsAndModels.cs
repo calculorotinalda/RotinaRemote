@@ -77,6 +77,7 @@ namespace RotinaRemote.Core.Models
         public int Port { get; set; } = 48270;
         public string RelaySessionId { get; set; } = string.Empty;
         public string RelayServerUrl { get; set; } = string.Empty;
+        public string PermissionMode { get; set; } = "FullControl"; // "FullControl" ou "OnlyRead"
         public GeoLocationInfo? CallerInfo { get; set; }
     }
 }

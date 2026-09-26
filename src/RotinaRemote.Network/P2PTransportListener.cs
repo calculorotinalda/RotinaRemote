@@ -9,7 +9,7 @@ using RotinaRemote.Protocol;
 
 namespace RotinaRemote.Network
 {
-    public class P2PTransportListener
+    public class P2PTransportListener : IDisposable
     {
         private TcpListener? _listener;
         private CancellationTokenSource? _cts;
@@ -64,9 +64,14 @@ namespace RotinaRemote.Network
             _listener = null;
             AppLogger.LogInfo("P2PListener", "Listener TCP parado.");
         }
+
+        public void Dispose()
+        {
+            Stop();
+        }
     }
 
-    public class ConnectionSession
+    public class ConnectionSession : IDisposable
     {
         private readonly Socket? _socket;
         private readonly Stream _stream;
@@ -189,6 +194,11 @@ namespace RotinaRemote.Network
             try { _stream.Dispose(); } catch { }
             try { _socket?.Dispose(); } catch { }
             Disconnected?.Invoke();
+        }
+
+        public void Dispose()
+        {
+            Close();
         }
     }
 }

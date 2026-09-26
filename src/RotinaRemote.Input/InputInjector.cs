@@ -106,6 +106,9 @@ namespace RotinaRemote.Input
         [DllImport("user32.dll")]
         private static extern int GetSystemMetrics(int nIndex);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern bool BlockInput(bool fBlockIt);
+
         private const int SM_CXSCREEN = 0;
         private const int SM_CYSCREEN = 1;
         private const int SM_XVIRTUALSCREEN = 76;
@@ -277,14 +280,34 @@ namespace RotinaRemote.Input
                         // Chamar SetForegroundWindow manualmente provocava reativações e cancelava
                         // tanto o evento de clique como os menus de contexto (Right Click) e o duplo-clique.
 
-                        // Injeção definitiva comprovada para Windows Físico, Windows Sandbox e Hyper-V (baseada no commit 33496f1):
-                        // mouse_event com MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK injeta diretamente
-                        // no driver do rato, contornando restrições de UIPI, UAC e filtros RDP do Windows Sandbox.
-                        uint dwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
-                        mouse_event(dwFlags, (uint)absX, (uint)absY, (uint)wheelDelta, UIntPtr.Zero);
+                        // 1. Garante que o cursor está exatamente no ponto alvo no driver de hardware (Sandbox / Físico / VM)
+                        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
 
-                        // Dispara também o evento estacionário de botão no ponto atual do cursor para total compatibilidade com controlos Win32/WPF/UWP
-                        mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
+                        // 2. Dispara o evento de botão de forma estacionária no ponto atual do cursor
+                        mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+
+                        // 3. Dispara também via SendInput estacionário para compatibilidade total com todas as janelas Win32/WPF/UWP
+                        try
+                        {
+                            var clickInput = new INPUT
+                            {
+                                type = INPUT_MOUSE,
+                                U = new InputUnion
+                                {
+                                    mi = new MOUSEINPUT
+                                    {
+                                        dx = 0,
+                                        dy = 0,
+                                        mouseData = (uint)wheelDelta,
+                                        dwFlags = clickFlags,
+                                        time = 0,
+                                        dwExtraInfo = IntPtr.Zero
+                                    }
+                                }
+                            };
+                            SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
+                        }
+                        catch { }
 
                         AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}]");
                     }
@@ -331,6 +354,19 @@ namespace RotinaRemote.Input
             catch (Exception ex)
             {
                 AppLogger.LogError("InputInjector", "Erro ao injetar evento de teclado", ex);
+            }
+        }
+
+        public static bool SetBlockLocalInput(bool block)
+        {
+            try
+            {
+                return BlockInput(block);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("InputInjector", $"Erro ao alterar BlockInput para {block}", ex);
+                return false;
             }
         }
     }
