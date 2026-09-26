@@ -90,6 +90,8 @@ namespace RotinaRemote.Input
         private static int _lastClickY = -1;
         private static DateTime _lastClickTime = DateTime.MinValue;
         private static bool _isLeftButtonDown = false;
+        private static int _lastRightClickX = -1;
+        private static int _lastRightClickY = -1;
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
@@ -109,12 +111,39 @@ namespace RotinaRemote.Input
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool BlockInput(bool fBlockIt);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr OpenInputDesktop(uint dwFlags, bool fInherit, uint dwDesiredAccess);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetThreadDesktop(IntPtr hDesktop);
+
+        private const uint DESKTOP_ALL_ACCESS = 0x01FF;
+
         private const int SM_CXSCREEN = 0;
         private const int SM_CYSCREEN = 1;
         private const int SM_XVIRTUALSCREEN = 76;
         private const int SM_YVIRTUALSCREEN = 77;
         private const int SM_CXVIRTUALSCREEN = 78;
         private const int SM_CYVIRTUALSCREEN = 79;
+
+        /// <summary>
+        /// Garante que a thread de injeção (mesmo de background/pool) está associada ao desktop interativo ativo do utilizador.
+        /// </summary>
+        private static void EnsureInputDesktop()
+        {
+            try
+            {
+                IntPtr hDesktop = OpenInputDesktop(0, false, DESKTOP_ALL_ACCESS);
+                if (hDesktop != IntPtr.Zero)
+                {
+                    SetThreadDesktop(hDesktop);
+                }
+            }
+            catch
+            {
+                // Ignora se já estiver associado ou em sessão restrita
+            }
+        }
         #endregion
 
         public static void InjectMouse(
@@ -129,6 +158,8 @@ namespace RotinaRemote.Input
         {
             try
             {
+                EnsureInputDesktop();
+
                 normalizedX = Math.Clamp(normalizedX, 0.0, 1.0);
                 normalizedY = Math.Clamp(normalizedY, 0.0, 1.0);
 
@@ -164,9 +195,7 @@ namespace RotinaRemote.Input
 
                 var now = DateTime.UtcNow;
 
-                // Estabilização rigorosa de duplo-clique:
-                // Se um novo clique ocorrer dentro de 550ms a menos de 15px do anterior,
-                // fixa a coordenada exatamente idêntica para o Windows gerar WM_LBUTTONDBLCLK com 100% de fiabilidade.
+                // Estabilização rigorosa de clique e duplo-clique:
                 if (type == MouseEventType.LeftDown)
                 {
                     _isLeftButtonDown = true;
@@ -195,28 +224,35 @@ namespace RotinaRemote.Input
                         targetY = _lastClickY;
                     }
                 }
+                else if (type == MouseEventType.RightDown)
+                {
+                    _lastRightClickX = targetX;
+                    _lastRightClickY = targetY;
+                }
+                else if (type == MouseEventType.RightUp)
+                {
+                    if (_lastRightClickX >= 0 &&
+                        Math.Abs(targetX - _lastRightClickX) <= 15 &&
+                        Math.Abs(targetY - _lastRightClickY) <= 15)
+                    {
+                        targetX = _lastRightClickX;
+                        targetY = _lastRightClickY;
+                    }
+                }
                 else if (type == MouseEventType.Move && _isLeftButtonDown && _lastClickX >= 0)
                 {
-                    // Se o botão está premido mas o movimento é inferior a 6px (micro-movimento acidental da mão durante um clique),
-                    // não move o cursor para evitar converter o clique num arrasto (drag-and-drop) indesejado.
                     if (Math.Abs(targetX - _lastClickX) < 6 && Math.Abs(targetY - _lastClickY) < 6)
                     {
                         return;
                     }
                 }
 
-                // Normalização absoluta (0 a 65535) para o desktop virtual do Windows
-                int absX = (int)Math.Round(((double)(targetX - vLeft) * 65535.0) / Math.Max(1, vWidth - 1));
-                int absY = (int)Math.Round(((double)(targetY - vTop) * 65535.0) / Math.Max(1, vHeight - 1));
-                absX = Math.Clamp(absX, 0, 65535);
-                absY = Math.Clamp(absY, 0, 65535);
-
-                // 1. Posiciona sempre o cursor do ecrã de forma síncrona
+                // 1. Posiciona o cursor do Windows no ponto exato em píxeis
                 SetCursorPos(targetX, targetY);
 
                 if (type == MouseEventType.Move)
                 {
-                    mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
+                    mouse_event(MOUSEEVENTF_MOVE, 0, 0, 0, UIntPtr.Zero);
                     return;
                 }
 
@@ -249,68 +285,31 @@ namespace RotinaRemote.Input
 
                 if (clickFlags != 0)
                 {
-                    if (clickFlags == MOUSEEVENTF_WHEEL)
+                    var clickInput = new INPUT
                     {
-                        var wheelInput = new INPUT
+                        type = INPUT_MOUSE,
+                        U = new InputUnion
                         {
-                            type = INPUT_MOUSE,
-                            U = new InputUnion
+                            mi = new MOUSEINPUT
                             {
-                                mi = new MOUSEINPUT
-                                {
-                                    dx = 0,
-                                    dy = 0,
-                                    mouseData = (uint)wheelDelta,
-                                    dwFlags = MOUSEEVENTF_WHEEL,
-                                    time = 0,
-                                    dwExtraInfo = IntPtr.Zero
-                                }
+                                dx = 0,
+                                dy = 0,
+                                mouseData = (uint)wheelDelta,
+                                dwFlags = clickFlags,
+                                time = 0,
+                                dwExtraInfo = IntPtr.Zero
                             }
-                        };
-                        uint sent = SendInput(1, new[] { wheelInput }, Marshal.SizeOf(typeof(INPUT)));
-                        if (sent == 0)
-                        {
-                            mouse_event(MOUSEEVENTF_WHEEL, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
                         }
-                    }
-                    else
+                    };
+
+                    uint sent = SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
+                    if (sent == 0)
                     {
-                        // IMPORTANTE: NÃO chamar SetForegroundWindow!
-                        // O Windows ativa nativamente a janela sob o cursor ao receber cliques.
-                        // Chamar SetForegroundWindow manualmente provocava reativações e cancelava
-                        // tanto o evento de clique como os menus de contexto (Right Click) e o duplo-clique.
-
-                        // 1. Garante que o cursor está exatamente no ponto alvo no driver de hardware (Sandbox / Físico / VM)
-                        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
-
-                        // 2. Dispara o evento de botão de forma estacionária no ponto atual do cursor
+                        // Fallback imediato para mouse_event na posição do cursor
                         mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
-
-                        // 3. Dispara também via SendInput estacionário para compatibilidade total com todas as janelas Win32/WPF/UWP
-                        try
-                        {
-                            var clickInput = new INPUT
-                            {
-                                type = INPUT_MOUSE,
-                                U = new InputUnion
-                                {
-                                    mi = new MOUSEINPUT
-                                    {
-                                        dx = 0,
-                                        dy = 0,
-                                        mouseData = (uint)wheelDelta,
-                                        dwFlags = clickFlags,
-                                        time = 0,
-                                        dwExtraInfo = IntPtr.Zero
-                                    }
-                                }
-                            };
-                            SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
-                        }
-                        catch { }
-
-                        AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}]");
                     }
+
+                    AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY})");
                 }
             }
             catch (Exception ex)
@@ -323,6 +322,8 @@ namespace RotinaRemote.Input
         {
             try
             {
+                EnsureInputDesktop();
+
                 uint dwFlags = 0;
                 if (type == KeyEventType.KeyUp)
                 {

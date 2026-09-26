@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using RotinaRemote.Client.ViewModels;
 using RotinaRemote.Input;
@@ -9,10 +11,64 @@ namespace RotinaRemote.Client.Views
     public partial class MainWindow : Window
     {
         private Point _lastMousePos;
+        private bool _isUpdatingPassword = false;
 
         public MainWindow()
         {
             InitializeComponent();
+            Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+            {
+                ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+                _isUpdatingPassword = true;
+                TargetPasswordBox.Password = ViewModel.TargetPassword ?? string.Empty;
+                UnattendedPasswordBox.Password = ViewModel.UnattendedPassword ?? string.Empty;
+                _isUpdatingPassword = false;
+            }
+        }
+
+        private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (_isUpdatingPassword || ViewModel == null) return;
+
+            if (e.PropertyName == nameof(MainViewModel.TargetPassword))
+            {
+                if (TargetPasswordBox.Password != ViewModel.TargetPassword)
+                {
+                    _isUpdatingPassword = true;
+                    TargetPasswordBox.Password = ViewModel.TargetPassword ?? string.Empty;
+                    _isUpdatingPassword = false;
+                }
+            }
+            else if (e.PropertyName == nameof(MainViewModel.UnattendedPassword))
+            {
+                if (UnattendedPasswordBox.Password != ViewModel.UnattendedPassword)
+                {
+                    _isUpdatingPassword = true;
+                    UnattendedPasswordBox.Password = ViewModel.UnattendedPassword ?? string.Empty;
+                    _isUpdatingPassword = false;
+                }
+            }
+        }
+
+        private void TargetPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingPassword || ViewModel == null) return;
+            _isUpdatingPassword = true;
+            ViewModel.TargetPassword = TargetPasswordBox.Password;
+            _isUpdatingPassword = false;
+        }
+
+        private void UnattendedPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingPassword || ViewModel == null) return;
+            _isUpdatingPassword = true;
+            ViewModel.UnattendedPassword = UnattendedPasswordBox.Password;
+            _isUpdatingPassword = false;
         }
 
         private MainViewModel? ViewModel => DataContext as MainViewModel;

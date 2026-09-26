@@ -87,7 +87,7 @@
                             <TextBox Text="{Binding TargetDeviceId, UpdateSourceTrigger=PropertyChanged}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource AccentBlue}" Padding="12,10" Margin="0,0,0,16" HorizontalContentAlignment="Center"/>
 
                             <TextBlock Text="PALAVRA-PASSE (opcional para acesso não supervisionado)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,4" />
-                            <TextBox Text="{Binding TargetPassword, UpdateSourceTrigger=PropertyChanged}" FontSize="15" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="10,8" Margin="0,0,0,24" HorizontalContentAlignment="Center"/>
+                            <PasswordBox x:Name="TargetPasswordBox" PasswordChar="●" PasswordChanged="TargetPasswordBox_PasswordChanged" FontSize="15" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="10,8" Margin="0,0,0,24" HorizontalContentAlignment="Center"/>
 
                             <Button Content="LIGAR AO DISPOSITIVO" Command="{Binding ConnectCommand}" Background="{DynamicResource AccentGreen}" FontSize="15" Height="44" HorizontalAlignment="Stretch" />
                         </StackPanel>
@@ -190,8 +190,8 @@
                                         <TextBlock Text="Alterna entre o modo escuro (Dark) e o modo claro (Light)." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                        <RadioButton Content="Escuro (Dark)" IsChecked="{Binding IsDarkMode, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,16,0" VerticalAlignment="Center" />
-                                        <RadioButton Content="Claro (Light)" IsChecked="{Binding IsLightMode, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                        <RadioButton GroupName="ThemeGroup" Content="Escuro (Dark)" IsChecked="{Binding IsDarkMode, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                                        <RadioButton GroupName="ThemeGroup" Content="Claro (Light)" IsChecked="{Binding IsLightMode, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DockPanel>
                                 <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
@@ -238,7 +238,7 @@
                                         <TextBlock Text="3. Palavra-passe de Acesso Remoto Imediato" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                                         <TextBlock Text="Senha exigida ao técnico ou cliente remoto para aceder a este computador." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                     </StackPanel>
-                                    <TextBox Text="{Binding UnattendedPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="220" FontSize="13" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    <PasswordBox x:Name="UnattendedPasswordBox" PasswordChar="●" PasswordChanged="UnattendedPasswordBox_PasswordChanged" Width="220" FontSize="13" Foreground="{DynamicResource TextPrimary}" Background="{DynamicResource CardBackground}" BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Padding="8,4" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </DockPanel>
                                 <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
 
@@ -249,8 +249,8 @@
                                         <TextBlock Text="Escolha se a ligação por senha permite controlo ativo ou apenas visualização de ecrã." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                                        <RadioButton Content="Controlo Total (Full Control)" IsChecked="{Binding IsFullControl, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,16,0" VerticalAlignment="Center" />
-                                        <RadioButton Content="Apenas Leitura (Only Read)" IsChecked="{Binding IsOnlyRead, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                        <RadioButton GroupName="UnattendedPermissionGroup" Content="Controlo Total (Full Control)" IsChecked="{Binding IsFullControl, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" Margin="0,0,16,0" VerticalAlignment="Center" />
+                                        <RadioButton GroupName="UnattendedPermissionGroup" Content="Apenas Leitura (Only Read)" IsChecked="{Binding IsOnlyRead, Mode=TwoWay}" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </DockPanel>
                             </StackPanel>

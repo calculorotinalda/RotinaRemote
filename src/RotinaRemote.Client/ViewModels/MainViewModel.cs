@@ -176,6 +176,8 @@ namespace RotinaRemote.Client.ViewModels
                     Theme = "Dark";
                     RotinaRemote.Client.Services.ThemeManager.ApplyTheme("Dark");
                 }
+                OnPropertyChanged(nameof(IsDarkMode));
+                OnPropertyChanged(nameof(IsLightMode));
             }
         }
 
@@ -189,6 +191,8 @@ namespace RotinaRemote.Client.ViewModels
                     Theme = "Light";
                     RotinaRemote.Client.Services.ThemeManager.ApplyTheme("Light");
                 }
+                OnPropertyChanged(nameof(IsDarkMode));
+                OnPropertyChanged(nameof(IsLightMode));
             }
         }
 
@@ -229,6 +233,8 @@ namespace RotinaRemote.Client.ViewModels
                 {
                     UnattendedPermission = "FullControl";
                 }
+                OnPropertyChanged(nameof(IsFullControl));
+                OnPropertyChanged(nameof(IsOnlyRead));
             }
         }
 
@@ -241,6 +247,8 @@ namespace RotinaRemote.Client.ViewModels
                 {
                     UnattendedPermission = "OnlyRead";
                 }
+                OnPropertyChanged(nameof(IsFullControl));
+                OnPropertyChanged(nameof(IsOnlyRead));
             }
         }
 
