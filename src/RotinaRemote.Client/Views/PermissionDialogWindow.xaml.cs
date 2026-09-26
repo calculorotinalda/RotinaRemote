@@ -32,6 +32,14 @@ namespace RotinaRemote.Client.Views
             TxtRemoteCountry.Text = !string.IsNullOrWhiteSpace(country) ? country : "Desconhecido";
             TxtRemoteLocation.Text = !string.IsNullOrWhiteSpace(location) ? location : (!string.IsNullOrWhiteSpace(city) ? $"{city}, {country}" : "Desconhecida");
 
+            // Ajusta limites máximos com base no ecrã ativo para garantir visibilidade total em qualquer resolução ou escala DPI
+            try
+            {
+                MaxHeight = Math.Max(400, SystemParameters.WorkArea.Height * 0.90);
+                MaxWidth = Math.Max(460, SystemParameters.WorkArea.Width * 0.90);
+            }
+            catch { }
+
             // Temporizador de 30 segundos com auto-rejeição
             _countdownTimer = new DispatcherTimer
             {
@@ -53,6 +61,24 @@ namespace RotinaRemote.Client.Views
                 }
             };
             _countdownTimer.Start();
+        }
+
+        private void OnSelectAllPermissionsClicked(object sender, RoutedEventArgs e)
+        {
+            ChkViewScreen.IsChecked = true;
+            ChkControlMouse.IsChecked = true;
+            ChkControlKeyboard.IsChecked = true;
+            ChkFileTransfer.IsChecked = true;
+            ChkClipboard.IsChecked = true;
+        }
+
+        private void OnViewOnlyPermissionsClicked(object sender, RoutedEventArgs e)
+        {
+            ChkViewScreen.IsChecked = true;
+            ChkControlMouse.IsChecked = false;
+            ChkControlKeyboard.IsChecked = false;
+            ChkFileTransfer.IsChecked = false;
+            ChkClipboard.IsChecked = false;
         }
 
         private void OnAcceptClicked(object sender, RoutedEventArgs e)

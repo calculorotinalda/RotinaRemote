@@ -138,6 +138,25 @@ namespace RotinaRemote.Screen
             }
         }
 
+        private int _targetWidth = 0;
+        private int _targetHeight = 0;
+
+        public void SetTargetResolution(int width, int height)
+        {
+            if (width > 0 && height > 0)
+            {
+                _targetWidth = width;
+                _targetHeight = height;
+                AppLogger.LogInfo("ScreenCapturer", $"Resolução alvo de streaming ajustada para {_targetWidth}x{_targetHeight} (Resolução do cliente).");
+            }
+        }
+
+        public void ClearTargetResolution()
+        {
+            _targetWidth = 0;
+            _targetHeight = 0;
+        }
+
         public CapturedFrame? CaptureNextFrame(long quality = 60L)
         {
             try
@@ -202,32 +221,60 @@ namespace RotinaRemote.Screen
                     g.DrawString("RotinaRemote — Ecrã Temporariamente Indisponível", font, Brushes.LightGray, new PointF(40, 40));
                 }
 
-                bitmap.SetResolution(96f, 96f);
+                Bitmap outputBitmap = bitmap;
+                bool needsDispose = false;
 
-                // Compress as JPEG with adjustable quality
-                using var ms = new MemoryStream();
-                var jpegEncoder = GetEncoder(ImageFormat.Jpeg);
-                if (jpegEncoder != null)
+                // Escalonamento adaptativo para a resolução do computador cliente se configurada
+                if (_targetWidth > 0 && _targetHeight > 0 && (_targetWidth != bounds.Width || _targetHeight != bounds.Height))
                 {
-                    using var encoderParams = new EncoderParameters(1);
-                    encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, quality);
-                    bitmap.Save(ms, jpegEncoder, encoderParams);
-                }
-                else
-                {
-                    bitmap.Save(ms, ImageFormat.Jpeg);
+                    var scaledBitmap = new Bitmap(_targetWidth, _targetHeight, PixelFormat.Format32bppArgb);
+                    using (var g = Graphics.FromImage(scaledBitmap))
+                    {
+                        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                        g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                        g.DrawImage(bitmap, 0, 0, _targetWidth, _targetHeight);
+                    }
+                    outputBitmap = scaledBitmap;
+                    needsDispose = true;
                 }
 
-                _frameCounter++;
-                return new CapturedFrame
+                try
                 {
-                    MonitorIndex = _selectedMonitorIndex,
-                    FrameIndex = _frameCounter,
-                    Width = bounds.Width,
-                    Height = bounds.Height,
-                    CompressedData = ms.ToArray(),
-                    IsKeyFrame = true
-                };
+                    outputBitmap.SetResolution(96f, 96f);
+
+                    // Compress as JPEG with adjustable quality
+                    using var ms = new MemoryStream();
+                    var jpegEncoder = GetEncoder(ImageFormat.Jpeg);
+                    if (jpegEncoder != null)
+                    {
+                        using var encoderParams = new EncoderParameters(1);
+                        encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, quality);
+                        outputBitmap.Save(ms, jpegEncoder, encoderParams);
+                    }
+                    else
+                    {
+                        outputBitmap.Save(ms, ImageFormat.Jpeg);
+                    }
+
+                    _frameCounter++;
+                    return new CapturedFrame
+                    {
+                        MonitorIndex = _selectedMonitorIndex,
+                        FrameIndex = _frameCounter,
+                        Width = outputBitmap.Width,
+                        Height = outputBitmap.Height,
+                        CompressedData = ms.ToArray(),
+                        IsKeyFrame = true
+                    };
+                }
+                finally
+                {
+                    if (needsDispose)
+                    {
+                        outputBitmap.Dispose();
+                    }
+                }
             }
             catch (Exception ex)
             {

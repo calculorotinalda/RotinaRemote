@@ -54,6 +54,8 @@ namespace RotinaRemote.Client.ViewModels
         private CancellationTokenSource? _sessionMonitoringCts;
         private string? _activeConnectedTargetId;
         private DateTime _sessionStartTime;
+        private int _incomingClientScreenWidth = 0;
+        private int _incomingClientScreenHeight = 0;
 
         private string _myDeviceId = string.Empty;
         private string _targetDeviceId = string.Empty;
@@ -537,6 +539,12 @@ namespace RotinaRemote.Client.ViewModels
                         callerCity = !string.IsNullOrWhiteSpace(req.City) ? req.City : "Desconhecida";
                         callerCountry = !string.IsNullOrWhiteSpace(req.Country) ? req.Country : "Desconhecido";
                         callerLocation = !string.IsNullOrWhiteSpace(req.Location) ? req.Location : $"{callerCity}, {callerCountry}";
+                        if (req.ClientScreenWidth > 0 && req.ClientScreenHeight > 0)
+                        {
+                            _incomingClientScreenWidth = req.ClientScreenWidth;
+                            _incomingClientScreenHeight = req.ClientScreenHeight;
+                            AppLogger.LogInfo("MainViewModel", $"[RESOLUTION] Resolução do ecrã do cliente recebida via sinalização: {_incomingClientScreenWidth}x{_incomingClientScreenHeight}");
+                        }
                     }
                 }
                 catch { }
@@ -558,11 +566,11 @@ namespace RotinaRemote.Client.ViewModels
                     {
                         var dialog = new Views.PermissionDialogWindow(callerId, callerIp, callerCity, callerCountry, callerLocation);
                         isApproved = dialog.ShowDialog() == true && dialog.IsApproved;
+                        if (isApproved)
+                        {
+                            _activeIncomingPermission = dialog.GrantedPermissions.HasFlag(SessionPermission.ControlMouse) ? "FullControl" : "ViewOnly";
+                        }
                     });
-                    if (isApproved)
-                    {
-                        _activeIncomingPermission = "FullControl";
-                    }
                 }
 
                 if (!isApproved)
@@ -637,6 +645,10 @@ namespace RotinaRemote.Client.ViewModels
                         session.Disconnected += () =>
                         {
                             _sessionMonitoringCts?.Cancel();
+                            DisplayResolutionManager.RestoreOriginalResolution();
+                            _screenCapturer.ClearTargetResolution();
+                            _incomingClientScreenWidth = 0;
+                            _incomingClientScreenHeight = 0;
                             if (!string.IsNullOrEmpty(_activeConnectedTargetId))
                             {
                                 ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
@@ -734,27 +746,40 @@ namespace RotinaRemote.Client.ViewModels
 
             var session = new ConnectionSession(socket);
             bool isApproved = false;
+            HandshakeRequestPayload? handshakePayload = null;
+
+            // Aguarda handshake de controlo com senha e resolução do cliente (timeout 1.2s)
+            var hsTcs = new TaskCompletionSource<HandshakeRequestPayload?>();
+            Action<PacketFrame> hsHandler = f =>
+            {
+                if (f.Channel == ChannelType.Control && f.Payload.Length > 0)
+                {
+                    try
+                    {
+                        var hs = MessageSerializer.DeserializeJson<HandshakeRequestPayload>(f.Payload);
+                        hsTcs.TrySetResult(hs);
+                    }
+                    catch { }
+                }
+            };
+            session.FrameReceived += hsHandler;
+            var completed = await Task.WhenAny(hsTcs.Task, Task.Delay(1200));
+            session.FrameReceived -= hsHandler;
+
+            if (completed == hsTcs.Task && hsTcs.Task.Result != null)
+            {
+                handshakePayload = hsTcs.Task.Result;
+                if (handshakePayload.ClientScreenWidth > 0 && handshakePayload.ClientScreenHeight > 0)
+                {
+                    _incomingClientScreenWidth = handshakePayload.ClientScreenWidth;
+                    _incomingClientScreenHeight = handshakePayload.ClientScreenHeight;
+                    AppLogger.LogInfo("MainViewModel", $"[RESOLUTION] Resolução do cliente recebida via handshake P2P: {_incomingClientScreenWidth}x{_incomingClientScreenHeight}");
+                }
+            }
 
             if (_config.EnableUnattendedAccess && !string.IsNullOrWhiteSpace(_config.UnattendedPassword))
             {
-                var hsTcs = new TaskCompletionSource<string?>();
-                Action<PacketFrame> hsHandler = f =>
-                {
-                    if (f.Channel == ChannelType.Control && f.Payload.Length > 0)
-                    {
-                        try
-                        {
-                            var hs = MessageSerializer.DeserializeJson<HandshakeRequestPayload>(f.Payload);
-                            hsTcs.TrySetResult(hs?.Password);
-                        }
-                        catch { }
-                    }
-                };
-                session.FrameReceived += hsHandler;
-                var completed = await Task.WhenAny(hsTcs.Task, Task.Delay(1200));
-                session.FrameReceived -= hsHandler;
-
-                if (completed == hsTcs.Task && hsTcs.Task.Result == _config.UnattendedPassword)
+                if (handshakePayload != null && handshakePayload.Password == _config.UnattendedPassword)
                 {
                     isApproved = true;
                     _activeIncomingPermission = _config.UnattendedPermission;
@@ -770,7 +795,7 @@ namespace RotinaRemote.Client.ViewModels
                     isApproved = dialog.ShowDialog() == true && dialog.IsApproved;
                     if (isApproved)
                     {
-                        _activeIncomingPermission = "FullControl";
+                        _activeIncomingPermission = dialog.GrantedPermissions.HasFlag(SessionPermission.ControlMouse) ? "FullControl" : "ViewOnly";
                     }
                 });
             }
@@ -784,6 +809,10 @@ namespace RotinaRemote.Client.ViewModels
                     session.Disconnected += () =>
                     {
                         _sessionMonitoringCts?.Cancel();
+                        DisplayResolutionManager.RestoreOriginalResolution();
+                        _screenCapturer.ClearTargetResolution();
+                        _incomingClientScreenWidth = 0;
+                        _incomingClientScreenHeight = 0;
                         if (!string.IsNullOrEmpty(_activeConnectedTargetId))
                         {
                             ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
@@ -824,6 +853,35 @@ namespace RotinaRemote.Client.ViewModels
 
         private void OnInputFrameReceivedFromClient(PacketFrame frame)
         {
+            if (frame.Channel == ChannelType.Control && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var resReq = MessageSerializer.DeserializeJson<ResolutionChangeRequestPayload>(frame.Payload);
+                    if (resReq != null && resReq.TargetWidth > 0 && resReq.TargetHeight > 0)
+                    {
+                        _incomingClientScreenWidth = resReq.TargetWidth;
+                        _incomingClientScreenHeight = resReq.TargetHeight;
+                        bool adjusted = DisplayResolutionManager.TryAdjustHostResolution(resReq.TargetWidth, resReq.TargetHeight, out string resMsg);
+                        _screenCapturer.SetTargetResolution(resReq.TargetWidth, resReq.TargetHeight);
+                        AppLogger.LogInfo("RemoteSession", $"[RESOLUTION CHANGE] Pedido recebido do cliente: {resReq.TargetWidth}x{resReq.TargetHeight}: {resMsg}");
+
+                        if (_incomingSession != null && _incomingSession.IsConnected)
+                        {
+                            var resp = new ResolutionChangeResponsePayload
+                            {
+                                Success = adjusted,
+                                EffectiveWidth = _incomingClientScreenWidth,
+                                EffectiveHeight = _incomingClientScreenHeight,
+                                Message = resMsg
+                            };
+                            _ = _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, MessageSerializer.SerializeJson(resp)));
+                        }
+                    }
+                }
+                catch { }
+            }
+
             if (frame.Channel == ChannelType.Input && frame.Payload.Length > 0)
             {
                 try
@@ -831,11 +889,12 @@ namespace RotinaRemote.Client.ViewModels
                     var inputPayload = MessageSerializer.DeserializeJson<InputPacketPayload>(frame.Payload);
                     if (inputPayload != null)
                     {
-                        if (string.Equals(_activeIncomingPermission, "OnlyRead", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(_activeIncomingPermission, "OnlyRead", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(_activeIncomingPermission, "ViewOnly", StringComparison.OrdinalIgnoreCase))
                         {
                             if (inputPayload.Type == ProtocolInputType.Mouse && inputPayload.MouseType != (byte)MouseEventType.Move)
                             {
-                                AppLogger.LogWarning("RemoteSession", $"[HOST BLOCKED] Clique de rato (Tipo={(MouseEventType)inputPayload.MouseType}) BLOQUEADO: Sessão remota em modo APENAS LEITURA (OnlyRead)!");
+                                AppLogger.LogWarning("RemoteSession", $"[HOST BLOCKED] Clique de rato (Tipo={(MouseEventType)inputPayload.MouseType}) BLOQUEADO: Sessão remota em modo APENAS LEITURA ({_activeIncomingPermission})!");
                             }
                             return;
                         }
@@ -962,6 +1021,20 @@ namespace RotinaRemote.Client.ViewModels
             _streamingCts?.Cancel();
             _streamingCts = new CancellationTokenSource();
             var token = _streamingCts.Token;
+
+            if (_incomingClientScreenWidth > 0 && _incomingClientScreenHeight > 0)
+            {
+                try
+                {
+                    bool adjusted = DisplayResolutionManager.TryAdjustHostResolution(_incomingClientScreenWidth, _incomingClientScreenHeight, out string resMsg);
+                    _screenCapturer.SetTargetResolution(_incomingClientScreenWidth, _incomingClientScreenHeight);
+                    AppLogger.LogInfo("RemoteSession", $"[RESOLUTION] Ajuste de resolução do ecrã do anfitrião ({_incomingClientScreenWidth}x{_incomingClientScreenHeight}): {resMsg} (Sucesso={adjusted})");
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("RemoteSession", "Erro ao ajustar resolução do ecrã do anfitrião", ex);
+                }
+            }
 
             if (_config.BlockRemoteInput)
             {
@@ -1114,6 +1187,7 @@ namespace RotinaRemote.Client.ViewModels
                 {
                     ConnectionStatus = "A aguardar autorização do anfitrião " + targetHost + "...";
 
+                    var clientRes = DisplayResolutionManager.GetCurrentResolution();
                     var myGeo = await RotinaRemote.Core.Services.GeoLocationService.GetGeoLocationAsync(_identity.FormattedId);
                     var reqPayload = new SignalingConnectRequestPayload
                     {
@@ -1122,7 +1196,9 @@ namespace RotinaRemote.Client.ViewModels
                         City = myGeo.City,
                         Country = myGeo.Country,
                         Location = myGeo.Location,
-                        Password = TargetPassword?.Trim() ?? string.Empty
+                        Password = TargetPassword?.Trim() ?? string.Empty,
+                        ClientScreenWidth = clientRes.Width,
+                        ClientScreenHeight = clientRes.Height
                     };
                     string reqJson = System.Text.Json.JsonSerializer.Serialize(reqPayload);
                     var signalingPayload = await _signalingClient.ResolveViaSignalingAsync(parsedId.RawValue, TimeSpan.FromSeconds(35), reqJson);
@@ -1264,26 +1340,42 @@ namespace RotinaRemote.Client.ViewModels
             if (activeSession == null && activeSocket != null)
             {
                 activeSession = new ConnectionSession(activeSocket);
-                if (!string.IsNullOrWhiteSpace(TargetPassword))
+                try
                 {
-                    try
+                    var clientRes = DisplayResolutionManager.GetCurrentResolution();
+                    var hs = new HandshakeRequestPayload
                     {
-                        var hs = new HandshakeRequestPayload
-                        {
-                            ClientDeviceId = _identity.FormattedId,
-                            Password = TargetPassword.Trim()
-                        };
-                        var hsBytes = MessageSerializer.SerializeJson(hs);
-                        _ = activeSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, hsBytes));
-                    }
-                    catch { }
+                        ClientDeviceId = _identity.FormattedId,
+                        Password = TargetPassword?.Trim() ?? string.Empty,
+                        ClientScreenWidth = clientRes.Width,
+                        ClientScreenHeight = clientRes.Height
+                    };
+                    var hsBytes = MessageSerializer.SerializeJson(hs);
+                    _ = activeSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, hsBytes));
                 }
+                catch { }
             }
 
             if (activeSession != null)
             {
                 try
                 {
+                    try
+                    {
+                        var clientRes = DisplayResolutionManager.GetCurrentResolution();
+                        if (clientRes.Width > 0 && clientRes.Height > 0)
+                        {
+                            var resChange = new ResolutionChangeRequestPayload
+                            {
+                                TargetWidth = clientRes.Width,
+                                TargetHeight = clientRes.Height
+                            };
+                            var resBytes = MessageSerializer.SerializeJson(resChange);
+                            _ = activeSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, resBytes));
+                        }
+                    }
+                    catch { }
+
                     _activeSession = activeSession;
                     _activeSession.FrameReceived += OnFrameReceivedFromHost;
                     _activeSession.Disconnected += OnSessionDisconnected;
@@ -1437,6 +1529,19 @@ namespace RotinaRemote.Client.ViewModels
 
         private void OnFrameReceivedFromHost(PacketFrame frame)
         {
+            if (frame.Channel == ChannelType.Control && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var resResp = MessageSerializer.DeserializeJson<ResolutionChangeResponsePayload>(frame.Payload);
+                    if (resResp != null && !string.IsNullOrEmpty(resResp.Message))
+                    {
+                        AppLogger.LogInfo("RemoteSession", $"[RESOLUTION STATUS] Resposta do host: {resResp.Message} ({resResp.EffectiveWidth}x{resResp.EffectiveHeight})");
+                    }
+                }
+                catch { }
+            }
+
             if (frame.Channel == ChannelType.Video && frame.Payload.Length > 0)
             {
                 var bitmap = BytesToBitmapImage(frame.Payload);
@@ -1470,6 +1575,10 @@ namespace RotinaRemote.Client.ViewModels
         private void Disconnect()
         {
             _sessionMonitoringCts?.Cancel();
+            DisplayResolutionManager.RestoreOriginalResolution();
+            _screenCapturer.ClearTargetResolution();
+            _incomingClientScreenWidth = 0;
+            _incomingClientScreenHeight = 0;
             if (!string.IsNullOrEmpty(_activeConnectedTargetId))
             {
                 ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);

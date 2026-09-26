@@ -1,111 +1,135 @@
 <Window x:Class="RotinaRemote.Client.Views.PermissionDialogWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Pedido de Ligação Remota" Height="560" Width="520"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="{StaticResource PrimaryBackground}" Foreground="{StaticResource TextPrimary}"
+        Title="Pedido de Ligação Remota - RotinaRemote"
+        Width="530" MinWidth="460" MaxWidth="640"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        Background="{DynamicResource PrimaryBackground}"
+        Foreground="{DynamicResource TextPrimary}"
         Topmost="True">
 
-    <Grid Margin="20">
+    <Grid Margin="16">
         <Grid.RowDefinitions>
+            <!-- 0: Cabeçalho Fixo -->
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <!-- 1: Conteúdo Rolável (Informações + Permissões) com ScrollViewer adaptativo para qualquer resolução/DPI -->
+            <RowDefinition Height="*" MaxHeight="480" />
+            <!-- 2: Rodapé Fixo com Ações e Temporizador (Sempre visível mesmo em ecrãs pequenos) -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Border Grid.Row="0" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
-            <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="🔔" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center" />
-                    <TextBlock Text="Pedido de Ligação Remota" FontSize="17" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" VerticalAlignment="Center"/>
+        <!-- 0: Cabeçalho -->
+        <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" CornerRadius="8" Padding="14,10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="🔔" FontSize="22" VerticalAlignment="Center" Margin="0,0,10,0" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Pedido de Ligação Remota" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" />
+                    <TextBlock Text="Um utilizador remoto está a solicitar acesso a este computador." FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
                 </StackPanel>
-                <TextBlock Text="Um utilizador remoto está a solicitar controlo deste computador." FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="28,2,0,0"/>
-            </StackPanel>
+            </Grid>
         </Border>
 
-        <!-- Info do Solicitante (ID, IP, Cidade, País, Localização) -->
-        <Border Grid.Row="1" Background="{StaticResource SecondaryBackground}" BorderBrush="{StaticResource AccentBlue}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,14">
+        <!-- 1: Conteúdo com ScrollViewer para compatibilidade total com 720p, 768p, 1080p e 125%/150% DPI -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,10" Padding="0,0,4,0">
             <StackPanel>
-                <!-- ID Remoto em Destaque -->
-                <Grid Margin="0,0,0,10">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="🆔" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="ID REMOTO DO SOLICITANTE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" />
-                        <TextBlock x:Name="TxtRemoteId" Text="--- --- ---" FontSize="22" FontWeight="Bold" Foreground="{StaticResource AccentBlue}" />
+                <!-- Cartão 1: Informações do Solicitante -->
+                <Border Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource AccentBlue}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,0,10">
+                    <StackPanel>
+                        <!-- ID Remoto em Destaque -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="🆔" FontSize="24" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="ID REMOTO DO SOLICITANTE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock x:Name="TxtRemoteId" Text="--- --- ---" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Separator Background="{DynamicResource BorderColor}" Margin="0,2,0,8"/>
+
+                        <!-- Grelha de Localização e IP com TextWrapping para não truncar -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Endereço IP -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,6,6">
+                                <TextBlock Text="🌐 Endereço IP:" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock x:Name="TxtRemoteIp" Text="A verificar..." FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Cidade -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="6,0,0,6">
+                                <TextBlock Text="🏙️ Cidade:" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock x:Name="TxtRemoteCity" Text="Desconhecida" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- País -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,6,0">
+                                <TextBlock Text="🌍 País:" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock x:Name="TxtRemoteCountry" Text="Desconhecido" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Localização Detalhada -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,0,0">
+                                <TextBlock Text="📍 Localização:" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
+                                <TextBlock x:Name="TxtRemoteLocation" Text="Desconhecida" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
-                </Grid>
+                </Border>
 
-                <Separator Background="#33FFFFFF" Margin="0,4,0,10"/>
+                <!-- Cartão 2: Permissões de Acesso -->
+                <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="8" Padding="14,10">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="Permissões a conceder ao remoto:" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                            <!-- Ações Rápidas de Seleção -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Todos" Click="OnSelectAllPermissionsClicked" FontSize="10" Padding="8,3" Margin="0,0,4,0" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Height="24" />
+                                <Button Content="Só Ver" Click="OnViewOnlyPermissionsClicked" FontSize="10" Padding="8,3" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Height="24" />
+                            </StackPanel>
+                        </DockPanel>
 
-                <!-- Detalhes de Localização: IP, Cidade, País, Localização -->
+                        <CheckBox x:Name="ChkViewScreen" Content="👁️ Ver ecrã em tempo real" IsChecked="True" Foreground="{DynamicResource TextPrimary}" Margin="0,3"/>
+                        <CheckBox x:Name="ChkControlMouse" Content="🖱️ Controlar movimento e cliques do rato" IsChecked="True" Foreground="{DynamicResource TextPrimary}" Margin="0,3"/>
+                        <CheckBox x:Name="ChkControlKeyboard" Content="⌨️ Controlar entrada de teclado" IsChecked="True" Foreground="{DynamicResource TextPrimary}" Margin="0,3"/>
+                        <CheckBox x:Name="ChkFileTransfer" Content="📁 Transferir e receber ficheiros" IsChecked="False" Foreground="{DynamicResource TextPrimary}" Margin="0,3"/>
+                        <CheckBox x:Name="ChkClipboard" Content="📋 Sincronizar área de transferência (Clipboard)" IsChecked="False" Foreground="{DynamicResource TextPrimary}" Margin="0,3"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- 2: Rodapé Fixo com Temporizador e Botões (Nunca fica cortado) -->
+        <Border Grid.Row="2" Background="{DynamicResource SecondaryBackground}" CornerRadius="8" Padding="12,10" Margin="0,4,0,0">
+            <StackPanel>
+                <TextBlock x:Name="TxtCountdown" Text="Aguardando a sua resposta (rejeição automática em 30s)..." FontSize="11" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
 
-                    <!-- IP Público / Rede -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8">
-                        <TextBlock Text="🌐 Endereço IP:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                        <TextBlock x:Name="TxtRemoteIp" Text="A verificar..." FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
-                    </StackPanel>
-
-                    <!-- Cidade -->
-                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,8">
-                        <TextBlock Text="🏙️ Cidade:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                        <TextBlock x:Name="TxtRemoteCity" Text="Desconhecida" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
-                    </StackPanel>
-
-                    <!-- País -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
-                        <TextBlock Text="🌍 País:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                        <TextBlock x:Name="TxtRemoteCountry" Text="Desconhecido" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" />
-                    </StackPanel>
-
-                    <!-- Localização Detalhada -->
-                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
-                        <TextBlock Text="📍 Localização:" FontSize="11" Foreground="{StaticResource TextSecondary}" />
-                        <TextBlock x:Name="TxtRemoteLocation" Text="Desconhecida" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" TextTrimming="CharacterEllipsis" />
-                    </StackPanel>
+                    <Button Content="REJEITAR" Click="OnRejectClicked" Background="{DynamicResource AccentRed}" Foreground="White" FontSize="13" FontWeight="Bold" Height="40" Margin="0,0,6,0"/>
+                    <Button Content="ACEITAR LIGAÇÃO" Click="OnAcceptClicked" Background="{DynamicResource AccentGreen}" Foreground="White" FontSize="13" FontWeight="Bold" Height="40" Margin="6,0,0,0"/>
                 </Grid>
             </StackPanel>
         </Border>
-
-        <!-- Permissões Concedidas -->
-        <Border Grid.Row="2" Background="{StaticResource SecondaryBackground}" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
-            <StackPanel>
-                <TextBlock Text="Permissões a conceder ao utilizador remoto:" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,6"/>
-
-                <CheckBox x:Name="ChkViewScreen" Content="Ver ecrã em tempo real" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
-                <CheckBox x:Name="ChkControlMouse" Content="Controlar movimento e cliques do rato" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
-                <CheckBox x:Name="ChkControlKeyboard" Content="Controlar entrada de teclado" IsChecked="True" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
-                <CheckBox x:Name="ChkFileTransfer" Content="Transferir e receber ficheiros" IsChecked="False" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
-                <CheckBox x:Name="ChkClipboard" Content="Sincronizar área de transferência" IsChecked="False" Foreground="{StaticResource TextPrimary}" Margin="0,3"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Botões de Ação com Temporizador -->
-        <StackPanel Grid.Row="3">
-            <TextBlock x:Name="TxtCountdown" Text="Aguardando a sua resposta (rejeição automática em 30s)..." FontSize="11" Foreground="{StaticResource TextSecondary}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <Button Content="REJEITAR" Click="OnRejectClicked" Background="{StaticResource AccentRed}" FontSize="14" FontWeight="Bold" Height="42" Margin="0,0,8,0"/>
-                <Button Content="ACEITAR" Click="OnAcceptClicked" Background="{StaticResource AccentGreen}" FontSize="14" FontWeight="Bold" Height="42" Margin="8,0,0,0"/>
-            </Grid>
-        </StackPanel>
     </Grid>
 </Window>

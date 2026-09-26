@@ -13,7 +13,9 @@ namespace RotinaRemote.Protocol
         PermissionGrant,
         HeartbeatPing,
         HeartbeatPong,
-        DisconnectNotice
+        DisconnectNotice,
+        ResolutionChangeRequest,
+        ResolutionChangeResponse
     }
 
     public class HandshakeRequestPayload
@@ -27,6 +29,8 @@ namespace RotinaRemote.Protocol
         public string Country { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public int ClientScreenWidth { get; set; }
+        public int ClientScreenHeight { get; set; }
     }
 
     public class SignalingConnectRequestPayload
@@ -37,6 +41,24 @@ namespace RotinaRemote.Protocol
         public string Country { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public int ClientScreenWidth { get; set; }
+        public int ClientScreenHeight { get; set; }
+    }
+
+    public class ResolutionChangeRequestPayload
+    {
+        public int TargetWidth { get; set; }
+        public int TargetHeight { get; set; }
+    }
+
+    public class ResolutionChangeResponsePayload
+    {
+        public bool Success { get; set; }
+        public int CurrentWidth { get; set; }
+        public int CurrentHeight { get; set; }
+        public int EffectiveWidth { get => CurrentWidth; set => CurrentWidth = value; }
+        public int EffectiveHeight { get => CurrentHeight; set => CurrentHeight = value; }
+        public string Message { get; set; } = string.Empty;
     }
 
     public class HandshakeResponsePayload

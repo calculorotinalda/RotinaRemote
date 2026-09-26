@@ -105,5 +105,47 @@ namespace RotinaRemote.UnitTests
             Assert.NotNull(frame.CompressedData);
             Assert.True(frame.CompressedData.Length > 100, "Tamanho dos dados comprimidos do JPEG deve ser superior a 100 bytes.");
         }
+
+        [Fact]
+        public void ScreenCapturer_WithTargetResolution_ShouldScaleFrameAccordingly()
+        {
+            using var capturer = new ScreenCapturer();
+            capturer.SetTargetResolution(1280, 720);
+
+            var frame = capturer.CaptureNextFrame(40L);
+            Assert.NotNull(frame);
+            Assert.Equal(1280, frame!.Width);
+            Assert.Equal(720, frame.Height);
+            Assert.NotNull(frame.CompressedData);
+            Assert.True(frame.CompressedData.Length > 50);
+
+            capturer.ClearTargetResolution();
+            var restoredFrame = capturer.CaptureNextFrame(40L);
+            Assert.NotNull(restoredFrame);
+            Assert.Equal(capturer.CurrentBounds.Width, restoredFrame!.Width);
+            Assert.Equal(capturer.CurrentBounds.Height, restoredFrame.Height);
+        }
+
+        [Fact]
+        public void DisplayResolutionManager_GetCurrentResolution_ShouldReturnValidDimensions()
+        {
+            var res = DisplayResolutionManager.GetCurrentResolution();
+            Assert.True(res.Width > 0, "Largura do ecrã deve ser superior a zero.");
+            Assert.True(res.Height > 0, "Altura do ecrã deve ser superior a zero.");
+            _output.WriteLine($"DisplayResolutionManager.GetCurrentResolution: {res.Width}x{res.Height}");
+        }
+
+        [Fact]
+        public void DisplayResolutionManager_GetSupportedDisplayModes_ShouldReturnModes()
+        {
+            var modes = DisplayResolutionManager.GetSupportedDisplayModes();
+            Assert.NotNull(modes);
+            _output.WriteLine($"Modos de exibição suportados encontrados: {modes.Count}");
+            foreach (var m in modes)
+            {
+                Assert.True(m.Width > 0);
+                Assert.True(m.Height > 0);
+            }
+        }
     }
 }

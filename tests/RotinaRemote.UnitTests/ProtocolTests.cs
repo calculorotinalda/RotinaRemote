@@ -52,7 +52,7 @@ namespace RotinaRemote.UnitTests
         }
 
         [Fact]
-        public void HandshakeRequestPayload_Serialization_ShouldIncludeGeoFields()
+        public void HandshakeRequestPayload_Serialization_ShouldIncludeGeoAndResolutionFields()
         {
             var payload = new HandshakeRequestPayload
             {
@@ -61,7 +61,9 @@ namespace RotinaRemote.UnitTests
                 ClientIp = "176.78.199.35",
                 City = "Lisboa",
                 Country = "Portugal",
-                Location = "Lisboa, Portugal"
+                Location = "Lisboa, Portugal",
+                ClientScreenWidth = 1920,
+                ClientScreenHeight = 1080
             };
 
             var bytes = MessageSerializer.SerializeJson(payload);
@@ -73,6 +75,38 @@ namespace RotinaRemote.UnitTests
             Assert.Equal("176.78.199.35", deserialized.ClientIp);
             Assert.Equal("Lisboa", deserialized.City);
             Assert.Equal("Portugal", deserialized.Country);
+            Assert.Equal(1920, deserialized.ClientScreenWidth);
+            Assert.Equal(1080, deserialized.ClientScreenHeight);
+        }
+
+        [Fact]
+        public void ResolutionChangePayloads_Serialization_ShouldRoundtrip()
+        {
+            var req = new ResolutionChangeRequestPayload
+            {
+                TargetWidth = 1366,
+                TargetHeight = 768
+            };
+            var reqBytes = MessageSerializer.SerializeJson(req);
+            var reqDeserialized = MessageSerializer.DeserializeJson<ResolutionChangeRequestPayload>(reqBytes);
+            Assert.NotNull(reqDeserialized);
+            Assert.Equal(1366, reqDeserialized!.TargetWidth);
+            Assert.Equal(768, reqDeserialized.TargetHeight);
+
+            var resp = new ResolutionChangeResponsePayload
+            {
+                Success = true,
+                CurrentWidth = 1366,
+                CurrentHeight = 768,
+                Message = "Resolução ajustada com sucesso"
+            };
+            var respBytes = MessageSerializer.SerializeJson(resp);
+            var respDeserialized = MessageSerializer.DeserializeJson<ResolutionChangeResponsePayload>(respBytes);
+            Assert.NotNull(respDeserialized);
+            Assert.True(respDeserialized!.Success);
+            Assert.Equal(1366, respDeserialized.EffectiveWidth);
+            Assert.Equal(768, respDeserialized.EffectiveHeight);
+            Assert.Equal("Resolução ajustada com sucesso", respDeserialized.Message);
         }
     }
 }
