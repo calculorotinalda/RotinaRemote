@@ -108,6 +108,50 @@ namespace RotinaRemote.Input
         [DllImport("user32.dll")]
         private static extern int GetSystemMetrics(int nIndex);
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int x;
+            public int y;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr WindowFromPoint(POINT Point);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+        private const uint GA_ROOT = 2;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
+
+        [DllImport("user32.dll")]
+        private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        private const uint WM_LBUTTONDOWN = 0x0201;
+        private const uint WM_LBUTTONUP = 0x0202;
+        private const uint WM_LBUTTONDBLCLK = 0x0203;
+        private const uint WM_RBUTTONDOWN = 0x0204;
+        private const uint WM_RBUTTONUP = 0x0205;
+        private const uint WM_MBUTTONDOWN = 0x0207;
+        private const uint WM_MBUTTONUP = 0x0208;
+        private const uint MK_LBUTTON = 0x0001;
+        private const uint MK_RBUTTON = 0x0002;
+        private const uint MK_MBUTTON = 0x0010;
+
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool BlockInput(bool fBlockIt);
 
@@ -370,11 +414,38 @@ namespace RotinaRemote.Input
 
                 if (clickFlags != 0)
                 {
-                    uint clickDwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                    // 1. Localização da janela de destino sob o cursor e ativação de foco
+                    IntPtr targetWnd = IntPtr.Zero;
+                    uint targetThread = 0;
+                    uint curThread = GetCurrentThreadId();
 
-                    // Despacha pacote atómico com 2 eventos em sequência:
-                    // 1. Move para a coordenada exata absX/absY (força hover, hit-testing e ativação da janela/controlo)
-                    // 2. Dispara o evento de clique do botão no ponto exato
+                    try
+                    {
+                        var pt = new POINT { x = targetX, y = targetY };
+                        targetWnd = WindowFromPoint(pt);
+                        if (targetWnd != IntPtr.Zero)
+                        {
+                            IntPtr rootWnd = GetAncestor(targetWnd, GA_ROOT);
+                            if (rootWnd != IntPtr.Zero)
+                            {
+                                IntPtr fgWnd = GetForegroundWindow();
+                                if (fgWnd != rootWnd)
+                                {
+                                    SetForegroundWindow(rootWnd);
+                                }
+                                targetThread = GetWindowThreadProcessId(rootWnd, out _);
+                                if (targetThread != 0 && targetThread != curThread)
+                                {
+                                    AttachThreadInput(curThread, targetThread, true);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+
+                    // Canal 1: SendInput com coordenadas absolutas e pacote atómico de movimento + clique
+                    uint clickDwFlags = clickFlags | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+
                     var inputs = new INPUT[2];
                     inputs[0] = new INPUT
                     {
@@ -417,10 +488,70 @@ namespace RotinaRemote.Input
                     else
                     {
                         int err = Marshal.GetLastWin32Error();
-                        AppLogger.LogError("RemoteSession", $"[HOST ERROR] SendInput retornou 0 para {type} em ({targetX}, {targetY}) [Win32={err}]. A disparar fallback mouse_event...");
-                        mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
-                        mouse_event(clickDwFlags, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
-                        AppLogger.LogInfo("RemoteSession", $"[HOST FALLBACK] Fallback mouse_event executado para {type} em ({targetX}, {targetY}).");
+                        AppLogger.LogError("RemoteSession", $"[HOST ERROR] SendInput retornou 0 para {type} em ({targetX}, {targetY}) [Win32={err}].");
+                    }
+
+                    // Canal 2: mouse_event direto relativo ao cursor (Redundância para contornar ESET ehdrv.sys e UIPI)
+                    // Este canal contorna a interceção de API do ESET e filtros que bloqueiam apenas a API SendInput
+                    try
+                    {
+                        mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
+                    }
+                    catch { }
+
+                    // Canal 3: Despacho direto de mensagens à janela via PostMessage
+                    // Garante que controlos de interface (botões, listas, caixas de diálogo) recebam o clique mesmo com filtros de driver
+                    if (targetWnd != IntPtr.Zero)
+                    {
+                        try
+                        {
+                            var clientPt = new POINT { x = targetX, y = targetY };
+                            ScreenToClient(targetWnd, ref clientPt);
+                            IntPtr lParam = (IntPtr)((clientPt.y << 16) | (clientPt.x & 0xFFFF));
+
+                            uint msg = 0;
+                            IntPtr wParam = IntPtr.Zero;
+                            switch (type)
+                            {
+                                case MouseEventType.LeftDown:
+                                    msg = WM_LBUTTONDOWN;
+                                    wParam = (IntPtr)MK_LBUTTON;
+                                    break;
+                                case MouseEventType.LeftUp:
+                                    msg = WM_LBUTTONUP;
+                                    break;
+                                case MouseEventType.RightDown:
+                                    msg = WM_RBUTTONDOWN;
+                                    wParam = (IntPtr)MK_RBUTTON;
+                                    break;
+                                case MouseEventType.RightUp:
+                                    msg = WM_RBUTTONUP;
+                                    break;
+                                case MouseEventType.MiddleDown:
+                                    msg = WM_MBUTTONDOWN;
+                                    wParam = (IntPtr)MK_MBUTTON;
+                                    break;
+                                case MouseEventType.MiddleUp:
+                                    msg = WM_MBUTTONUP;
+                                    break;
+                            }
+
+                            if (msg != 0)
+                            {
+                                PostMessage(targetWnd, msg, wParam, lParam);
+                            }
+                        }
+                        catch { }
+                    }
+
+                    // Desconectar AttachThreadInput se foi ativado
+                    if (targetThread != 0 && targetThread != curThread)
+                    {
+                        try
+                        {
+                            AttachThreadInput(curThread, targetThread, false);
+                        }
+                        catch { }
                     }
                 }
             }
