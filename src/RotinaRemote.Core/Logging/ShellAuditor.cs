@@ -69,9 +69,33 @@ namespace RotinaRemote.Core.Logging
                     {
                         _logFilePaths.Add(Path.Combine(workspaceReleases, "log-shell.txt"));
                     }
+
+                    string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                    if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
+                    {
+                        _logFilePaths.Add(Path.Combine(desktop, "log-shell.txt"));
+                    }
                 }
                 catch { }
             }
+        }
+
+        public static void LogGitExportAudit(string details)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine();
+            sb.AppendLine("================================================================================");
+            sb.AppendLine("[AUDITORIA DE SINCRONIZAÇÃO E EXPORTAÇÃO GITHUB PÓS-LIGAÇÃO REMOTA]");
+            sb.AppendLine($"Data/Hora Local: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            sb.AppendLine($"Data/Hora UTC:   {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}Z");
+            sb.AppendLine("Repositório Remoto: https://github.com/calculorotinalda/RotinaRemote.git");
+            sb.AppendLine("Branch:             main");
+            sb.AppendLine("--------------------------------------------------------------------------------");
+            sb.AppendLine(details);
+            sb.AppendLine("================================================================================");
+            sb.AppendLine();
+
+            WriteLog(sb.ToString());
         }
 
         public static void WriteLog(string content)
