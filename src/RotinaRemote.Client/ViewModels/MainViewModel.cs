@@ -51,6 +51,9 @@ namespace RotinaRemote.Client.ViewModels
         private CancellationTokenSource? _streamingCts;
         private ConnectionSession? _activeSession;
         private ConnectionSession? _incomingSession;
+        private CancellationTokenSource? _sessionMonitoringCts;
+        private string? _activeConnectedTargetId;
+        private DateTime _sessionStartTime;
 
         private string _myDeviceId = string.Empty;
         private string _targetDeviceId = string.Empty;
@@ -633,6 +636,12 @@ namespace RotinaRemote.Client.ViewModels
                         session.FrameReceived += OnInputFrameReceivedFromClient;
                         session.Disconnected += () =>
                         {
+                            _sessionMonitoringCts?.Cancel();
+                            if (!string.IsNullOrEmpty(_activeConnectedTargetId))
+                            {
+                                ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
+                                _activeConnectedTargetId = null;
+                            }
                             _incomingSession = null;
                             System.Windows.Application.Current.Dispatcher.Invoke(() =>
                             {
@@ -641,6 +650,18 @@ namespace RotinaRemote.Client.ViewModels
                         };
 
                         AppLogger.LogInfo("MainViewModel", $"Host conectado ao Servidor Relay WebSocket ({relayServerUrl}) com SessionId: {relaySessionId}");
+                        _activeConnectedTargetId = $"Host-Relay ({relaySessionId})";
+                        _sessionStartTime = DateTime.UtcNow;
+                        _ = ShellAuditor.AuditConnectionAtConnectAsync(
+                            direction: "Entrada (Host / Anfitrião controlado via Nuvem)",
+                            targetId: relaySessionId,
+                            transportName: "Servidor Relay WebSocket (Cloud)",
+                            cloudServerUrl: relayServerUrl);
+
+                        _sessionMonitoringCts?.Cancel();
+                        _sessionMonitoringCts = new CancellationTokenSource();
+                        ShellAuditor.StartSessionMonitoring(relaySessionId, _sessionMonitoringCts.Token);
+
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
                         {
                             ConnectionStatus = "Sessão Ativa via Relay na Nuvem";
@@ -762,6 +783,12 @@ namespace RotinaRemote.Client.ViewModels
                     session.FrameReceived += OnInputFrameReceivedFromClient;
                     session.Disconnected += () =>
                     {
+                        _sessionMonitoringCts?.Cancel();
+                        if (!string.IsNullOrEmpty(_activeConnectedTargetId))
+                        {
+                            ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
+                            _activeConnectedTargetId = null;
+                        }
                         if (_config.BlockRemoteInput)
                         {
                             InputInjector.SetBlockLocalInput(false);
@@ -773,6 +800,18 @@ namespace RotinaRemote.Client.ViewModels
                         });
                     };
                     ConnectionStatus = "Sessão Ativa com " + resolvedId;
+                    _activeConnectedTargetId = resolvedId;
+                    _sessionStartTime = DateTime.UtcNow;
+                    _ = ShellAuditor.AuditConnectionAtConnectAsync(
+                        direction: "Entrada (Host / Anfitrião controlado via Rede Local)",
+                        targetId: resolvedId,
+                        transportName: "Direto (P2P Local)",
+                        cloudServerUrl: _config.SignalingServerUrl);
+
+                    _sessionMonitoringCts?.Cancel();
+                    _sessionMonitoringCts = new CancellationTokenSource();
+                    ShellAuditor.StartSessionMonitoring(resolvedId, _sessionMonitoringCts.Token);
+
                     StartHostScreenStreaming(session);
                 });
             }
@@ -1050,6 +1089,12 @@ namespace RotinaRemote.Client.ViewModels
                     return;
                 }
 
+                _ = ShellAuditor.AuditConnectionAtConnectAsync(
+                    direction: "Saída (Cliente a iniciar ligação)",
+                    targetId: targetHost,
+                    transportName: "A negociar rota de ligação...",
+                    cloudServerUrl: _config.SignalingServerUrl);
+
                 // Attempt to resolve target device IP via LAN / Windows Sandbox UDP discovery first
                 ConnectionStatus = "A procurar " + targetHost + " na rede local / Sandbox...";
                 var resolvedIp = await _lanDiscovery.ResolveDeviceIdAsync(parsedId.RawValue, 3500);
@@ -1249,6 +1294,18 @@ namespace RotinaRemote.Client.ViewModels
                     SelectedTabIndex = 1;
                     AppLogger.LogInfo("RemoteSession", $"[SESSION CONNECTED] Sessão remota estabelecida com sucesso com {targetHost} via {usedTransportName}.");
 
+                    _activeConnectedTargetId = targetHost;
+                    _sessionStartTime = DateTime.UtcNow;
+                    _ = ShellAuditor.AuditConnectionAtConnectAsync(
+                        direction: "Saída (Cliente conectado ao Host)",
+                        targetId: targetHost,
+                        transportName: usedTransportName,
+                        cloudServerUrl: _config.SignalingServerUrl);
+
+                    _sessionMonitoringCts?.Cancel();
+                    _sessionMonitoringCts = new CancellationTokenSource();
+                    ShellAuditor.StartSessionMonitoring(targetHost, _sessionMonitoringCts.Token);
+
                     History.Insert(0, new ConnectionHistoryItem
                     {
                         RemoteId = targetHost,
@@ -1412,6 +1469,12 @@ namespace RotinaRemote.Client.ViewModels
 
         private void Disconnect()
         {
+            _sessionMonitoringCts?.Cancel();
+            if (!string.IsNullOrEmpty(_activeConnectedTargetId))
+            {
+                ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
+                _activeConnectedTargetId = null;
+            }
             _streamingCts?.Cancel();
             if (_activeSession != null)
             {

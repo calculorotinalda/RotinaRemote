@@ -51,6 +51,8 @@ namespace RotinaRemote.Client
             }
 
             AppLogger.LogInfo("App", "RotinaRemote Client iniciando...");
+            ShellAuditor.InitializeLogPaths();
+            ShellAuditor.WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INICIALIZAÇÃO] RotinaRemote Client iniciado. Sistema de auditoria de shell e conectividade à Internet ativo.");
 
             var config = AppConfig.Load();
             ThemeManager.ApplyTheme(config.Theme);

@@ -164,36 +164,50 @@ namespace RotinaRemote.Network
             }
         }
 
+        [System.Runtime.InteropServices.DllImport("iphlpapi.dll", SetLastError = true)]
+        private static extern int GetIpNetTable(IntPtr pIpNetTable, ref int pdwSize, bool bOrder);
+
         public static System.Collections.Generic.List<IPAddress> GetNeighborIpAddresses()
         {
             var list = new System.Collections.Generic.List<IPAddress>();
             try
             {
-                var psi = new System.Diagnostics.ProcessStartInfo("arp", "-a")
+                int bytesRequired = 0;
+                GetIpNetTable(IntPtr.Zero, ref bytesRequired, false);
+                if (bytesRequired > 0)
                 {
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                using var proc = System.Diagnostics.Process.Start(psi);
-                if (proc != null)
-                {
-                    string output = proc.StandardOutput.ReadToEnd();
-                    proc.WaitForExit(1000);
-                    foreach (var line in output.Split('\n'))
+                    IntPtr buffer = System.Runtime.InteropServices.Marshal.AllocHGlobal(bytesRequired);
+                    try
                     {
-                        var parts = line.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length >= 2 && IPAddress.TryParse(parts[0], out var ip))
+                        int result = GetIpNetTable(buffer, ref bytesRequired, false);
+                        if (result == 0)
                         {
-                            if (ip.AddressFamily == AddressFamily.InterNetwork)
+                            int numEntries = System.Runtime.InteropServices.Marshal.ReadInt32(buffer);
+                            IntPtr currentPtr = IntPtr.Add(buffer, 4);
+                            int rowSize = 24;
+
+                            for (int i = 0; i < numEntries; i++)
                             {
-                                string ipStr = ip.ToString();
-                                if (!ipStr.StartsWith("224.") && !ipStr.StartsWith("239.") && !ipStr.EndsWith(".255"))
+                                uint ipInt = (uint)System.Runtime.InteropServices.Marshal.ReadInt32(currentPtr, 16);
+                                if (ipInt != 0)
                                 {
-                                    list.Add(ip);
+                                    var ip = new IPAddress(ipInt);
+                                    string ipStr = ip.ToString();
+                                    if (!ipStr.StartsWith("224.") && !ipStr.StartsWith("239.") && !ipStr.EndsWith(".255") && !ipStr.StartsWith("127."))
+                                    {
+                                        if (!list.Contains(ip))
+                                        {
+                                            list.Add(ip);
+                                        }
+                                    }
                                 }
+                                currentPtr = IntPtr.Add(currentPtr, rowSize);
                             }
                         }
+                    }
+                    finally
+                    {
+                        System.Runtime.InteropServices.Marshal.FreeHGlobal(buffer);
                     }
                 }
             }
