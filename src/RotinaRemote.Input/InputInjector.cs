@@ -136,12 +136,22 @@ namespace RotinaRemote.Input
                 IntPtr hDesktop = OpenInputDesktop(0, false, DESKTOP_ALL_ACCESS);
                 if (hDesktop != IntPtr.Zero)
                 {
-                    SetThreadDesktop(hDesktop);
+                    bool setOk = SetThreadDesktop(hDesktop);
+                    if (!setOk)
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        AppLogger.LogDebug("RemoteSession", $"[HOST DESKTOP] SetThreadDesktop falhou com Win32 Error={err}.");
+                    }
+                }
+                else
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    AppLogger.LogDebug("RemoteSession", $"[HOST DESKTOP] OpenInputDesktop retornou zero. Win32 Error={err}.");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignora se já estiver associado ou em sessão restrita
+                AppLogger.LogDebug("RemoteSession", $"[HOST DESKTOP] Erro ao associar input desktop: {ex.Message}");
             }
         }
         #endregion
@@ -248,7 +258,12 @@ namespace RotinaRemote.Input
                 }
 
                 // 1. Posiciona o cursor do Windows no ponto exato em píxeis
-                SetCursorPos(targetX, targetY);
+                bool setPosOk = SetCursorPos(targetX, targetY);
+                if (!setPosOk && type != MouseEventType.Move)
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    AppLogger.LogWarning("RemoteSession", $"[HOST ERROR] SetCursorPos({targetX}, {targetY}) falhou! Win32 Error={err}");
+                }
 
                 if (type == MouseEventType.Move)
                 {
@@ -303,18 +318,22 @@ namespace RotinaRemote.Input
                     };
 
                     uint sent = SendInput(1, new[] { clickInput }, Marshal.SizeOf(typeof(INPUT)));
-                    if (sent == 0)
+                    if (sent == 1)
                     {
-                        // Fallback imediato para mouse_event na posição do cursor
-                        mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+                        AppLogger.LogInfo("RemoteSession", $"[HOST SUCCESS] SendInput disparado com SUCESSO para {type} em ({targetX}, {targetY}).");
                     }
-
-                    AppLogger.LogInfo("InputInjector", $"Injetado evento de rato: {type} em ({targetX}, {targetY})");
+                    else
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        AppLogger.LogError("RemoteSession", $"[HOST ERROR] SendInput retornou 0 para {type} em ({targetX}, {targetY}) [Win32={err}]. A disparar fallback mouse_event...");
+                        mouse_event(clickFlags, 0, 0, (uint)wheelDelta, UIntPtr.Zero);
+                        AppLogger.LogInfo("RemoteSession", $"[HOST FALLBACK] Fallback mouse_event executado para {type} em ({targetX}, {targetY}).");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("InputInjector", "Erro ao injetar evento de rato", ex);
+                AppLogger.LogError("RemoteSession", $"[HOST EXCEPTION] Erro ao injetar evento de rato {type}", ex);
             }
         }
 

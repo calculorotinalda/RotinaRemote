@@ -154,43 +154,46 @@ namespace RotinaRemote.Client.Views
             RemoteScreenImage.Focus();
             RemoteScreenImage.CaptureMouse();
             var pos = e.GetPosition(RemoteScreenImage);
-            if (GetNormalizedCoordinates(pos, out double normX, out double normY))
+            if (!GetNormalizedCoordinates(pos, out double normX, out double normY))
             {
-                var now = DateTime.UtcNow;
-
-                if (e.ChangedButton == MouseButton.Left)
-                {
-                    _isClientMouseDown = true;
-
-                    // Deteção e estabilização de duplo-clique do WPF:
-                    // Se for um duplo-clique (ClickCount >= 2) ou ocorrer dentro de 550ms muito próximo do clique anterior,
-                    // ancora as coordenadas exatamente às mesmas do primeiro clique para o Windows remoto acionar WM_LBUTTONDBLCLK.
-                    if ((e.ClickCount >= 2 || (now - _lastLeftClickTime).TotalMilliseconds <= 550) && _lastLeftNormX >= 0 &&
-                        System.Math.Abs(normX - _lastLeftNormX) < 0.012 &&
-                        System.Math.Abs(normY - _lastLeftNormY) < 0.012)
-                    {
-                        normX = _lastLeftNormX;
-                        normY = _lastLeftNormY;
-                    }
-                    else
-                    {
-                        _lastLeftNormX = normX;
-                        _lastLeftNormY = normY;
-                    }
-                    _lastLeftClickTime = now;
-                }
-
-                MouseEventType mouseType = e.ChangedButton switch
-                {
-                    MouseButton.Left => MouseEventType.LeftDown,
-                    MouseButton.Right => MouseEventType.RightDown,
-                    MouseButton.Middle => MouseEventType.MiddleDown,
-                    _ => MouseEventType.LeftDown
-                };
-
-                SendMouseInput(mouseType, normX, normY);
-                e.Handled = true;
+                RotinaRemote.Core.Logging.AppLogger.LogWarning("RemoteSession", $"[CLIENT MOUSE DOWN] Clique {e.ChangedButton} ignorado fora dos limites do ecrã remoto em ({pos.X:F1}, {pos.Y:F1}).");
+                return;
             }
+
+            var now = DateTime.UtcNow;
+
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                _isClientMouseDown = true;
+
+                // Deteção e estabilização de duplo-clique do WPF:
+                if ((e.ClickCount >= 2 || (now - _lastLeftClickTime).TotalMilliseconds <= 550) && _lastLeftNormX >= 0 &&
+                    System.Math.Abs(normX - _lastLeftNormX) < 0.012 &&
+                    System.Math.Abs(normY - _lastLeftNormY) < 0.012)
+                {
+                    normX = _lastLeftNormX;
+                    normY = _lastLeftNormY;
+                    RotinaRemote.Core.Logging.AppLogger.LogInfo("RemoteSession", $"[CLIENT DOUBLE CLICK] Duplo-clique detetado (ClickCount={e.ClickCount}). Coordenadas estabilizadas em ({normX:F4}, {normY:F4}).");
+                }
+                else
+                {
+                    _lastLeftNormX = normX;
+                    _lastLeftNormY = normY;
+                }
+                _lastLeftClickTime = now;
+            }
+
+            MouseEventType mouseType = e.ChangedButton switch
+            {
+                MouseButton.Left => MouseEventType.LeftDown,
+                MouseButton.Right => MouseEventType.RightDown,
+                MouseButton.Middle => MouseEventType.MiddleDown,
+                _ => MouseEventType.LeftDown
+            };
+
+            RotinaRemote.Core.Logging.AppLogger.LogInfo("RemoteSession", $"[CLIENT MOUSE DOWN] Botão={e.ChangedButton}, Tipo={mouseType}, ClickCount={e.ClickCount}, Posição=({pos.X:F1}, {pos.Y:F1}), Normalizado=({normX:F4}, {normY:F4})");
+            SendMouseInput(mouseType, normX, normY);
+            e.Handled = true;
         }
 
         private void OnRemoteScreenMouseUp(object sender, MouseButtonEventArgs e)
@@ -243,6 +246,7 @@ namespace RotinaRemote.Client.Views
                     _ => MouseEventType.LeftUp
                 };
 
+                RotinaRemote.Core.Logging.AppLogger.LogInfo("RemoteSession", $"[CLIENT MOUSE UP] Botão={e.ChangedButton}, Tipo={mouseType}, Posição=({pos.X:F1}, {pos.Y:F1}), Normalizado=({normX:F4}, {normY:F4})");
                 SendMouseInput(mouseType, normX, normY);
                 e.Handled = true;
             }
@@ -297,22 +301,34 @@ namespace RotinaRemote.Client.Views
         private void SendMouseInput(MouseEventType mouseType, double normX, double normY, int wheelDelta = 0)
         {
             var vm = ViewModel;
-            if (vm != null && vm.IsConnected)
+            if (vm == null)
             {
-                var payload = new InputPacketPayload
-                {
-                    Type = ProtocolInputType.Mouse,
-                    MouseType = (byte)mouseType,
-                    NormX = normX,
-                    NormY = normY,
-                    WheelDelta = wheelDelta
-                };
+                RotinaRemote.Core.Logging.AppLogger.LogError("RemoteSession", $"[CLIENT ERROR] Falha ao enviar clique {mouseType}: ViewModel é nulo.");
+                return;
+            }
+
+            if (!vm.IsConnected)
+            {
                 if (mouseType != MouseEventType.Move)
                 {
-                    RotinaRemote.Core.Logging.AppLogger.LogInfo("MainWindow", $"Enviando clique de rato: {mouseType} em ({normX:F3}, {normY:F3})");
+                    RotinaRemote.Core.Logging.AppLogger.LogWarning("RemoteSession", $"[CLIENT WARNING] Clique {mouseType} em ({normX:F4}, {normY:F4}) não enviado: Nenhuma sessão remota ativa (IsConnected = false).");
                 }
-                vm.SendInputToRemoteHost(payload);
+                return;
             }
+
+            var payload = new InputPacketPayload
+            {
+                Type = ProtocolInputType.Mouse,
+                MouseType = (byte)mouseType,
+                NormX = normX,
+                NormY = normY,
+                WheelDelta = wheelDelta
+            };
+            if (mouseType != MouseEventType.Move)
+            {
+                RotinaRemote.Core.Logging.AppLogger.LogInfo("RemoteSession", $"[CLIENT SEND] Enviando clique {mouseType} em ({normX:F4}, {normY:F4}) via {vm.TransportType}.");
+            }
+            vm.SendInputToRemoteHost(payload);
         }
 
         private void SendKeyboardInput(KeyEventType keyType, ushort vkey)

@@ -787,25 +787,28 @@ namespace RotinaRemote.Client.ViewModels
         {
             if (frame.Channel == ChannelType.Input && frame.Payload.Length > 0)
             {
-                if (string.Equals(_activeIncomingPermission, "OnlyRead", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Apenas Leitura (Only Read) ativo: ignorar entradas remotas de rato e teclado
-                    return;
-                }
-
                 try
                 {
                     var inputPayload = MessageSerializer.DeserializeJson<InputPacketPayload>(frame.Payload);
                     if (inputPayload != null)
                     {
+                        if (string.Equals(_activeIncomingPermission, "OnlyRead", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (inputPayload.Type == ProtocolInputType.Mouse && inputPayload.MouseType != (byte)MouseEventType.Move)
+                            {
+                                AppLogger.LogWarning("RemoteSession", $"[HOST BLOCKED] Clique de rato (Tipo={(MouseEventType)inputPayload.MouseType}) BLOQUEADO: Sessão remota em modo APENAS LEITURA (OnlyRead)!");
+                            }
+                            return;
+                        }
+
                         if (inputPayload.Type == ProtocolInputType.Mouse)
                         {
                             var mType = (MouseEventType)inputPayload.MouseType;
+                            var bounds = _screenCapturer.CurrentBounds;
                             if (mType != MouseEventType.Move)
                             {
-                                AppLogger.LogInfo("MainViewModel", $"Host recebeu evento de clique: {mType} em ({inputPayload.NormX:F3}, {inputPayload.NormY:F3})");
+                                AppLogger.LogInfo("RemoteSession", $"[HOST RECV] Recebido clique {mType} em ({inputPayload.NormX:F4}, {inputPayload.NormY:F4}). Permissão={_activeIncomingPermission}. Ecrã Alvo: {bounds.Width}x{bounds.Height} em ({bounds.X}, {bounds.Y})");
                             }
-                            var bounds = _screenCapturer.CurrentBounds;
                             InputInjector.InjectMouse(
                                 mType,
                                 inputPayload.NormX,
@@ -818,6 +821,7 @@ namespace RotinaRemote.Client.ViewModels
                         }
                         else if (inputPayload.Type == ProtocolInputType.Keyboard)
                         {
+                            AppLogger.LogInfo("RemoteSession", $"[HOST RECV] Recebido teclado: KeyType={(KeyEventType)inputPayload.KeyType}, VKey={inputPayload.VirtualKeyCode}");
                             InputInjector.InjectKeyboard(
                                 (KeyEventType)inputPayload.KeyType,
                                 inputPayload.VirtualKeyCode);
@@ -826,7 +830,7 @@ namespace RotinaRemote.Client.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    AppLogger.LogError("MainViewModel", "Erro ao injetar evento de input recebido", ex);
+                    AppLogger.LogError("RemoteSession", "Host: Erro ao processar frame de input recebido", ex);
                 }
             }
         }
@@ -839,7 +843,13 @@ namespace RotinaRemote.Client.ViewModels
         public async void SendInputToRemoteHost(InputPacketPayload inputPayload)
         {
             if (_activeSession == null || !_activeSession.IsConnected || !IsConnected)
+            {
+                if (inputPayload.Type == ProtocolInputType.Mouse && inputPayload.MouseType != (byte)MouseEventType.Move)
+                {
+                    AppLogger.LogWarning("RemoteSession", $"[CLIENT ERROR] Não foi possível enviar clique: Sessão não está ligada ou ativa (_activeSession={_activeSession != null}, IsConnected={IsConnected})");
+                }
                 return;
+            }
 
             // Se for movimento do rato, coalescer para enviar apenas a posição mais recente e não congestionar a fila
             if (inputPayload.Type == ProtocolInputType.Mouse && inputPayload.MouseType == (byte)MouseEventType.Move)
@@ -882,7 +892,7 @@ namespace RotinaRemote.Client.ViewModels
                         }
                         catch (Exception ex)
                         {
-                            AppLogger.LogWarning("MainViewModel", $"Erro ao enviar movimento de rato: {ex.Message}");
+                            AppLogger.LogWarning("RemoteSession", $"Erro ao enviar movimento de rato: {ex.Message}");
                         }
                     }
                 });
@@ -897,10 +907,14 @@ namespace RotinaRemote.Client.ViewModels
                 var bytes = MessageSerializer.SerializeJson(inputPayload);
                 var packet = new PacketFrame(ChannelType.Input, _inputSeq, bytes);
                 await _activeSession.SendFrameAsync(packet);
+                if (inputPayload.Type == ProtocolInputType.Mouse && inputPayload.MouseType != (byte)MouseEventType.Move)
+                {
+                    AppLogger.LogInfo("RemoteSession", $"[CLIENT SENT] Pacote de clique {(MouseEventType)inputPayload.MouseType} despachado com sucesso via rede (Seq={_inputSeq}).");
+                }
             }
             catch (Exception ex)
             {
-                AppLogger.LogError("MainViewModel", "Erro ao enviar input prioritário para o computador remoto", ex);
+                AppLogger.LogError("RemoteSession", "Erro ao enviar input prioritário para o computador remoto", ex);
             }
         }
 
@@ -1233,6 +1247,7 @@ namespace RotinaRemote.Client.ViewModels
                     TransportType = usedTransportName;
                     ConnectionStatus = "Ligado a " + targetHost + " (" + usedTransportName + ")";
                     SelectedTabIndex = 1;
+                    AppLogger.LogInfo("RemoteSession", $"[SESSION CONNECTED] Sessão remota estabelecida com sucesso com {targetHost} via {usedTransportName}.");
 
                     History.Insert(0, new ConnectionHistoryItem
                     {
@@ -1412,6 +1427,7 @@ namespace RotinaRemote.Client.ViewModels
             RemoteScreenSource = null;
             ConnectionStatus = "Pronto";
             SelectedTabIndex = 0;
+            AppLogger.LogInfo("RemoteSession", "[SESSION DISCONNECTED] Sessão remota desconectada e recursos libertados.");
         }
 
         private async void RunDiagnostics()

@@ -168,9 +168,25 @@ namespace RotinaRemote.Client.Services
         {
             try
             {
-                // Para antes de remover
+                // 1. Para o serviço Windows
                 StopService();
 
+                // 2. Termina eventuais processos de serviço bloqueados em segundo plano
+                try
+                {
+                    var currentPid = Process.GetCurrentProcess().Id;
+                    var procs = Process.GetProcessesByName("RotinaRemote");
+                    foreach (var p in procs)
+                    {
+                        if (p.Id != currentPid)
+                        {
+                            try { p.Kill(); p.WaitForExit(1000); } catch { }
+                        }
+                    }
+                }
+                catch { }
+
+                // 3. Executa a remoção definitiva no SCM
                 var psi = new ProcessStartInfo
                 {
                     FileName = "sc.exe",
@@ -183,8 +199,8 @@ namespace RotinaRemote.Client.Services
                 using var proc = Process.Start(psi);
                 proc?.WaitForExit(5000);
 
-                AppLogger.LogInfo("WindowsServiceManager", "Comando de desinstalação de serviço executado.");
-                return (true, "Serviço desinstalado com sucesso.");
+                AppLogger.LogInfo("WindowsServiceManager", "Comando de desinstalação de serviço executado com sucesso.");
+                return (true, "Serviço desinstalado e removido do sistema com sucesso.");
             }
             catch (Exception ex)
             {

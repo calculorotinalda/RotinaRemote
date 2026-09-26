@@ -16,12 +16,85 @@ namespace RotinaRemote.Core.Logging
     public static class AppLogger
     {
         private static readonly object _lock = new object();
-        private static string _logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+        private static readonly System.Collections.Generic.HashSet<string> _logFilePaths = new(StringComparer.OrdinalIgnoreCase);
+
+        static AppLogger()
+        {
+            InitializeLogPaths();
+        }
+
+        public static void InitializeLogPaths()
+        {
+            lock (_lock)
+            {
+                _logFilePaths.Clear();
+
+                // 1. Diretoria base da aplicação (onde está o exe em execução)
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string mainLog = Path.Combine(baseDir, "log.txt");
+                _logFilePaths.Add(mainLog);
+
+                // 2. Diretoria do processo executável se diferente da base
+                try
+                {
+                    string? procPath = Environment.ProcessPath;
+                    if (!string.IsNullOrEmpty(procPath))
+                    {
+                        string? procDir = Path.GetDirectoryName(procPath);
+                        if (!string.IsNullOrEmpty(procDir) && !procDir.Equals(baseDir, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logFilePaths.Add(Path.Combine(procDir, "log.txt"));
+                        }
+                    }
+                }
+                catch { }
+
+                // 3. Diretoria "Releases" onde estão os ficheiros executáveis gerados
+                try
+                {
+                    string current = baseDir;
+                    for (int i = 0; i < 5 && !string.IsNullOrEmpty(current); i++)
+                    {
+                        string candidate = Path.Combine(current, "Releases");
+                        if (Directory.Exists(candidate))
+                        {
+                            _logFilePaths.Add(Path.Combine(candidate, "log.txt"));
+                            break;
+                        }
+                        var parent = Directory.GetParent(current);
+                        if (parent == null) break;
+                        current = parent.FullName;
+                    }
+
+                    // Verifica caminho absoluto padrão de releases no ambiente de trabalho e projeto
+                    string workspaceReleases = @"C:\Users\alll\Documents\Rotinaremote\Releases";
+                    if (Directory.Exists(workspaceReleases))
+                    {
+                        _logFilePaths.Add(Path.Combine(workspaceReleases, "log.txt"));
+                    }
+                }
+                catch { }
+            }
+        }
 
         public static string LogFilePath
         {
-            get => _logFilePath;
-            set => _logFilePath = value;
+            get => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+            set
+            {
+                lock (_lock)
+                {
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        _logFilePaths.Add(value);
+                    }
+                }
+            }
+        }
+
+        public static void LogDebug(string component, string message)
+        {
+            WriteLog(LogSeverity.Debug, component, message, null);
         }
 
         public static void LogInfo(string component, string message)
@@ -42,6 +115,11 @@ namespace RotinaRemote.Core.Logging
         public static void LogCritical(string component, string message, Exception? ex = null)
         {
             WriteLog(LogSeverity.Critical, component, message, ex);
+        }
+
+        public static void LogRemoteSession(string component, string message, Exception? ex = null)
+        {
+            WriteLog(LogSeverity.Info, $"[SESSÃO REMOTA] {component}", message, ex);
         }
 
         private static void WriteLog(LogSeverity severity, string component, string message, Exception? ex)
@@ -68,7 +146,19 @@ namespace RotinaRemote.Core.Logging
                 lock (_lock)
                 {
                     Console.WriteLine(logLine);
-                    File.AppendAllText(_logFilePath, logLine + Environment.NewLine);
+                    foreach (var path in _logFilePaths)
+                    {
+                        try
+                        {
+                            var dir = Path.GetDirectoryName(path);
+                            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                            {
+                                Directory.CreateDirectory(dir);
+                            }
+                            File.AppendAllText(path, logLine + Environment.NewLine);
+                        }
+                        catch { }
+                    }
                 }
             }
             catch
