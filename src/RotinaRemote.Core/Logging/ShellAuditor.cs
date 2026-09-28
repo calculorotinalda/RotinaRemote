@@ -19,6 +19,11 @@ namespace RotinaRemote.Core.Logging
         private static readonly HashSet<string> _logFilePaths = new(StringComparer.OrdinalIgnoreCase);
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
 
+        /// <summary>
+        /// Indica se o modo de depuração está ativo. Se falso, log-shell.txt não é criado nem gravado em disco.
+        /// </summary>
+        public static bool IsDebugModeEnabled { get; set; } = false;
+
         static ShellAuditor()
         {
             InitializeLogPaths();
@@ -100,6 +105,11 @@ namespace RotinaRemote.Core.Logging
 
         public static void WriteLog(string content)
         {
+            if (!IsDebugModeEnabled)
+            {
+                return;
+            }
+
             lock (_lock)
             {
                 foreach (var path in _logFilePaths)

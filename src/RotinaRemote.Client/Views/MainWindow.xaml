@@ -606,6 +606,33 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Cartão 6: Modo de Depuração e Logs (Configuração 16) -->
+                        <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="20" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="🛠️ Modo de Depuração &amp; Ficheiros de Registo" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,0,12" />
+
+                                <!-- Configuração 16: Modo de Depuração (Caixa Select / Checkbox) -->
+                                <DockPanel Margin="0,4,0,8">
+                                    <StackPanel DockPanel.Dock="Left" MaxWidth="520">
+                                        <TextBlock Text="16. Modo de Depuração" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                        <TextBlock Text="Controla a geração dos ficheiros de registo e diagnóstico (log.txt, log-shell.txt e config.json). Desative para manter o sistema limpo sem criar ficheiros na pasta do executável." FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ComboBox SelectedIndex="{Binding DebugModeSelectedIndex, Mode=TwoWay}" Width="240" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <ComboBoxItem Content="Desativado (Sem Ficheiros)" />
+                                        <ComboBoxItem Content="Ativado (Modo de Depuração)" />
+                                    </ComboBox>
+                                </DockPanel>
+                                <Separator Background="{DynamicResource BorderColor}" Margin="0,6" />
+
+                                <DockPanel Margin="0,4,0,4">
+                                    <StackPanel DockPanel.Dock="Left">
+                                        <TextBlock Text="Ativação Rápida:" FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                    </StackPanel>
+                                    <CheckBox IsChecked="{Binding EnableDebugMode, Mode=TwoWay}" Content="Ativar Modo de Depuração" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Botão de Guardar Configurações -->
                         <Border Background="{DynamicResource SecondaryBackground}" CornerRadius="10" Padding="16" Margin="0,0,0,16">
                             <DockPanel>

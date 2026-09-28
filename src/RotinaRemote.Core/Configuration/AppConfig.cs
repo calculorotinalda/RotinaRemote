@@ -57,6 +57,9 @@ namespace RotinaRemote.Core.Configuration
         public int StunServerPort { get; set; } = 19302;
         public string DefaultSavePath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
 
+        // 16. Modo de Depuração (Gera ficheiros log.txt, log-shell.txt e config.json na pasta da aplicação)
+        public bool EnableDebugMode { get; set; } = false;
+
         private static readonly string ConfigFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
 
         public static AppConfig Load()
@@ -76,7 +79,10 @@ namespace RotinaRemote.Core.Configuration
             }
 
             var defaultConfig = new AppConfig();
-            defaultConfig.Save();
+            if (defaultConfig.EnableDebugMode)
+            {
+                defaultConfig.Save();
+            }
             return defaultConfig;
         }
 

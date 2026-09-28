@@ -9,9 +9,41 @@ namespace RotinaRemote.Security
     [SupportedOSPlatform("windows")]
     public class DeviceIdentity
     {
-        private static readonly string IdentityFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "identity.dat");
-
         public string RawId { get; private set; } = string.Empty;
+
+        private static string GetIdentityFilePath(bool forWriting = false)
+        {
+            string localFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "identity.dat");
+            if (File.Exists(localFile))
+            {
+                return localFile;
+            }
+
+            try
+            {
+                string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RotinaRemote");
+                string appDataFile = Path.Combine(localAppData, "identity.dat");
+                if (File.Exists(appDataFile))
+                {
+                    return appDataFile;
+                }
+
+                if (forWriting)
+                {
+                    if (!Directory.Exists(localAppData))
+                    {
+                        Directory.CreateDirectory(localAppData);
+                    }
+                    return appDataFile;
+                }
+            }
+            catch
+            {
+                // Fallback para pasta local se falhar acesso a AppData
+            }
+
+            return localFile;
+        }
 
         public string FormattedId
         {
@@ -36,9 +68,10 @@ namespace RotinaRemote.Security
         {
             try
             {
-                if (File.Exists(IdentityFilePath))
+                var filePath = GetIdentityFilePath(forWriting: false);
+                if (File.Exists(filePath))
                 {
-                    var encryptedBytes = File.ReadAllBytes(IdentityFilePath);
+                    var encryptedBytes = File.ReadAllBytes(filePath);
                     var decryptedBytes = ProtectedData.Unprotect(encryptedBytes, null, DataProtectionScope.CurrentUser);
                     var savedId = Encoding.UTF8.GetString(decryptedBytes).Trim();
                     if (savedId.Length == 9 && long.TryParse(savedId, out _))
@@ -70,7 +103,8 @@ namespace RotinaRemote.Security
             {
                 var bytes = Encoding.UTF8.GetBytes(RawId);
                 var encryptedBytes = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);
-                File.WriteAllBytes(IdentityFilePath, encryptedBytes);
+                var filePath = GetIdentityFilePath(forWriting: true);
+                File.WriteAllBytes(filePath, encryptedBytes);
             }
             catch
             {

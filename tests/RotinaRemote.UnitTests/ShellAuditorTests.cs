@@ -12,6 +12,7 @@ namespace RotinaRemote.UnitTests
         public async Task ShellAuditor_AuditConnectionAtConnectAsync_WritesToLogShellFile()
         {
             // Arrange
+            ShellAuditor.IsDebugModeEnabled = true;
             ShellAuditor.InitializeLogPaths();
             string testTargetId = "999 888 777";
             string testTransport = "Servidor Relay WebSocket (Cloud)";
@@ -34,6 +35,7 @@ namespace RotinaRemote.UnitTests
         public void ShellAuditor_LogSessionEnded_WritesClosureReport()
         {
             // Arrange
+            ShellAuditor.IsDebugModeEnabled = true;
             ShellAuditor.InitializeLogPaths();
             string testTargetId = "111 222 333";
 
@@ -48,6 +50,51 @@ namespace RotinaRemote.UnitTests
             Assert.Contains("[SESSÃO TERMINADA]", content);
             Assert.Contains(testTargetId, content);
             Assert.Contains("0 comandos foram executados em shells", content);
+        }
+
+        [Fact]
+        public void ShellAuditor_WhenDebugModeDisabled_DoesNotWriteToFile()
+        {
+            // Arrange
+            ShellAuditor.IsDebugModeEnabled = false;
+            string uniqueMsg = "MSG_TEST_DISABLED_" + Guid.NewGuid();
+
+            // Act
+            ShellAuditor.WriteLog(uniqueMsg);
+
+            // Assert
+            string localLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log-shell.txt");
+            if (File.Exists(localLog))
+            {
+                string content = File.ReadAllText(localLog);
+                Assert.DoesNotContain(uniqueMsg, content);
+            }
+        }
+
+        [Fact]
+        public void AppLogger_WhenDebugModeDisabled_DoesNotWriteToFile()
+        {
+            // Arrange
+            AppLogger.IsDebugModeEnabled = false;
+            string uniqueMsg = "MSG_LOGGER_DISABLED_" + Guid.NewGuid();
+
+            // Act
+            AppLogger.LogInfo("Test", uniqueMsg);
+
+            // Assert
+            string localLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+            if (File.Exists(localLog))
+            {
+                string content = File.ReadAllText(localLog);
+                Assert.DoesNotContain(uniqueMsg, content);
+            }
+        }
+
+        [Fact]
+        public void AppConfig_EnableDebugMode_DefaultsToFalse()
+        {
+            var config = new RotinaRemote.Core.Configuration.AppConfig();
+            Assert.False(config.EnableDebugMode);
         }
     }
 }

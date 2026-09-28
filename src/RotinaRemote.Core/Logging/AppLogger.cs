@@ -18,6 +18,11 @@ namespace RotinaRemote.Core.Logging
         private static readonly object _lock = new object();
         private static readonly System.Collections.Generic.HashSet<string> _logFilePaths = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Indica se o modo de depuração está ativo. Se falso, log.txt não é criado nem gravado em disco.
+        /// </summary>
+        public static bool IsDebugModeEnabled { get; set; } = false;
+
         static AppLogger()
         {
             InitializeLogPaths();
@@ -143,9 +148,16 @@ namespace RotinaRemote.Core.Logging
 
                 var logLine = sb.ToString();
 
+                Console.WriteLine(logLine);
+
+                // Só grava em ficheiros log.txt se o Modo de Depuração estiver ativo
+                if (!IsDebugModeEnabled)
+                {
+                    return;
+                }
+
                 lock (_lock)
                 {
-                    Console.WriteLine(logLine);
                     foreach (var path in _logFilePaths)
                     {
                         try

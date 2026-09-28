@@ -120,6 +120,7 @@ namespace RotinaRemote.Client.ViewModels
         private int _lanDiscoveryPort = 48271;
         private int _keepAliveIntervalMs = 3000;
         private string _signalingServerUrl = "wss://rotinaremote-signaling-49575983278.europe-west1.run.app/ws";
+        private bool _enableDebugMode = false;
 
         // Estado do Serviço Windows
         private string _serviceStatusText = "A verificar...";
@@ -368,6 +369,34 @@ namespace RotinaRemote.Client.ViewModels
             set => SetProperty(ref _signalingServerUrl, value);
         }
 
+        // 16. Modo de Depuração (Geração de Ficheiros de Log e Diagnóstico)
+        public bool EnableDebugMode
+        {
+            get => _enableDebugMode;
+            set
+            {
+                if (SetProperty(ref _enableDebugMode, value))
+                {
+                    AppLogger.IsDebugModeEnabled = value;
+                    ShellAuditor.IsDebugModeEnabled = value;
+                    _config.EnableDebugMode = value;
+                    OnPropertyChanged(nameof(DebugModeSelectedIndex));
+                    if (value)
+                    {
+                        AppLogger.LogInfo("Config", "Modo de Depuração ATIVADO pelo utilizador. Geração de ficheiros habilitada.");
+                        ShellAuditor.InitializeLogPaths();
+                        ShellAuditor.WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [MODO DEPURAÇÃO] Modo de depuração ativado nas configurações avançadas.");
+                    }
+                }
+            }
+        }
+
+        public int DebugModeSelectedIndex
+        {
+            get => _enableDebugMode ? 1 : 0;
+            set => EnableDebugMode = (value == 1);
+        }
+
         // Estado do Serviço Windows
         public string ServiceStatusText
         {
@@ -461,6 +490,9 @@ namespace RotinaRemote.Client.ViewModels
             _lanDiscoveryPort = _config.LanDiscoveryPort;
             _keepAliveIntervalMs = _config.KeepAliveIntervalMs;
             _signalingServerUrl = _config.SignalingServerUrl;
+            _enableDebugMode = _config.EnableDebugMode;
+            AppLogger.IsDebugModeEnabled = _enableDebugMode;
+            ShellAuditor.IsDebugModeEnabled = _enableDebugMode;
 
             _screenCapturer = new ScreenCapturer();
             _listener = new P2PTransportListener();
@@ -805,6 +837,7 @@ namespace RotinaRemote.Client.ViewModels
                 _config.LanDiscoveryPort = LanDiscoveryPort;
                 _config.KeepAliveIntervalMs = KeepAliveIntervalMs;
                 _config.SignalingServerUrl = SignalingServerUrl;
+                _config.EnableDebugMode = EnableDebugMode;
 
                 _config.Save();
                 RotinaRemote.Client.Services.ThemeManager.ApplyTheme(Theme);

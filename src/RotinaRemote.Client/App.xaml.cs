@@ -41,6 +41,10 @@ namespace RotinaRemote.Client
                 }
             };
 
+            var config = AppConfig.Load();
+            AppLogger.IsDebugModeEnabled = config.EnableDebugMode;
+            ShellAuditor.IsDebugModeEnabled = config.EnableDebugMode;
+
             // Se iniciado em modo Serviço Windows via SCM
             if (Array.Exists(e.Args, a => a.Equals("--service", StringComparison.OrdinalIgnoreCase)))
             {
@@ -51,10 +55,12 @@ namespace RotinaRemote.Client
             }
 
             AppLogger.LogInfo("App", "RotinaRemote Client iniciando...");
-            ShellAuditor.InitializeLogPaths();
-            ShellAuditor.WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INICIALIZAÇÃO] RotinaRemote Client iniciado. Sistema de auditoria de shell e conectividade à Internet ativo.");
+            if (config.EnableDebugMode)
+            {
+                ShellAuditor.InitializeLogPaths();
+                ShellAuditor.WriteLog($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [INICIALIZAÇÃO] RotinaRemote Client iniciado em Modo de Depuração.");
+            }
 
-            var config = AppConfig.Load();
             ThemeManager.ApplyTheme(config.Theme);
 
             var mainWindow = new Views.MainWindow();
