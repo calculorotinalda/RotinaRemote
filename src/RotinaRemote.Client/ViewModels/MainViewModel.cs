@@ -11,6 +11,9 @@ using System.Windows.Media.Imaging;
 using RotinaRemote.Core.Configuration;
 using RotinaRemote.Core.Logging;
 using RotinaRemote.Core.Models;
+using RotinaRemote.Client.Models;
+using RotinaRemote.Client.Services;
+using System.Windows.Threading;
 using RotinaRemote.Input;
 using RotinaRemote.Network;
 using RotinaRemote.Protocol;
@@ -40,6 +43,34 @@ namespace RotinaRemote.Client.ViewModels
         public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public class RelayCommand<T> : ICommand
+    {
+        private readonly Action<T?> _execute;
+        private readonly Func<T?, bool>? _canExecute;
+
+        public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public bool CanExecute(object? parameter)
+        {
+            if (parameter is T typed) return _canExecute?.Invoke(typed) ?? true;
+            if (parameter == null && default(T) == null) return _canExecute?.Invoke(default) ?? true;
+            return _canExecute?.Invoke(default) ?? true;
+        }
+
+        public void Execute(object? parameter)
+        {
+            if (parameter is T typed) _execute(typed);
+            else _execute(default);
+        }
+
+        public event EventHandler? CanExecuteChanged;
+        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public class MainViewModel : ViewModelBase
     {
         private readonly DeviceIdentity _identity;
@@ -56,6 +87,9 @@ namespace RotinaRemote.Client.ViewModels
         private DateTime _sessionStartTime;
         private int _incomingClientScreenWidth = 0;
         private int _incomingClientScreenHeight = 0;
+        private IncomingConnectionItem? _activeIncomingConnection;
+        private IncomingConnectionItem? _pendingRelayConnectionItem;
+        private DispatcherTimer? _incomingDurationTimer;
 
         private string _myDeviceId = string.Empty;
         private string _targetDeviceId = string.Empty;
@@ -348,12 +382,53 @@ namespace RotinaRemote.Client.ViewModels
         }
 
         public ObservableCollection<ConnectionHistoryItem> History { get; } = new();
+        public ObservableCollection<IncomingConnectionItem> IncomingConnections { get; } = new();
+
+        public IncomingConnectionItem? ActiveIncomingConnection
+        {
+            get => _activeIncomingConnection;
+            set
+            {
+                if (SetProperty(ref _activeIncomingConnection, value))
+                {
+                    OnPropertyChanged(nameof(HasActiveIncomingConnection));
+                    OnPropertyChanged(nameof(IsNoIncomingConnectionActive));
+                    OnPropertyChanged(nameof(ActiveIncomingConnectionsCount));
+                }
+            }
+        }
+
+        public bool HasActiveIncomingConnection => ActiveIncomingConnection != null && ActiveIncomingConnection.IsActive;
+        public bool IsNoIncomingConnectionActive => !HasActiveIncomingConnection;
+        public int ActiveIncomingConnectionsCount => IncomingConnections.Count(c => c.IsActive);
+        public int TotalIncomingConnectionsCount => IncomingConnections.Count;
+
+        public string ExecutionModeText =>
+            WindowsServiceManager.GetStatus() == ServiceStatusEnum.Running
+                ? "Serviço do Windows (LocalSystem)"
+                : "Aplicação Desktop (Sessão de Utilizador)";
+
+        public bool IsRunningAsService => WindowsServiceManager.GetStatus() == ServiceStatusEnum.Running;
+
+        public string ServiceNoticeText =>
+            "O RotinaRemote está a monitorizar ativamente todas as ligações e tentativas de acesso ao seu ID diretamente através desta aplicação. O monitoramento e controlo funcionam a 100% em modo de utilizador normal, mesmo sem ter o serviço do Windows instalado.";
 
         public ICommand CopyIdCommand { get; }
         public ICommand ConnectCommand { get; }
         public ICommand DisconnectCommand { get; }
         public ICommand RunDiagnosticsCommand { get; }
         public ICommand ExportDiagnosticsCommand { get; }
+
+        public ICommand DisconnectIncomingCommand { get; }
+        public ICommand KillSessionCommand { get; }
+        public ICommand ClearIncomingHistoryCommand { get; }
+        public ICommand RefreshConnectionsCommand { get; }
+
+        public ICommand SendRemoteMinimizeCommand { get; }
+        public ICommand SendRemoteMaximizeCommand { get; }
+        public ICommand SendRemoteCloseCommand { get; }
+        public ICommand MinimizeLocalWindowCommand { get; }
+        public ICommand MaximizeLocalWindowCommand { get; }
 
         // Comandos de Definições Avançadas e Serviço
         public ICommand SaveSettingsCommand { get; }
@@ -405,6 +480,17 @@ namespace RotinaRemote.Client.ViewModels
             RunDiagnosticsCommand = new RelayCommand(RunDiagnostics);
             ExportDiagnosticsCommand = new RelayCommand(ExportDiagnostics);
 
+            DisconnectIncomingCommand = new RelayCommand<IncomingConnectionItem>(item => DisconnectIncomingSession(item));
+            KillSessionCommand = new RelayCommand<IncomingConnectionItem>(item => KillIncomingSession(item));
+            ClearIncomingHistoryCommand = new RelayCommand(ClearIncomingHistory);
+            RefreshConnectionsCommand = new RelayCommand(RefreshConnectionsState);
+
+            SendRemoteMinimizeCommand = new RelayCommand(SendRemoteMinimize);
+            SendRemoteMaximizeCommand = new RelayCommand(SendRemoteMaximize);
+            SendRemoteCloseCommand = new RelayCommand(SendRemoteClose);
+            MinimizeLocalWindowCommand = new RelayCommand(MinimizeLocalWindow);
+            MaximizeLocalWindowCommand = new RelayCommand(MaximizeLocalWindow);
+
             SaveSettingsCommand = new RelayCommand(SaveSettings);
             ToggleThemeCommand = new RelayCommand(ToggleTheme);
             InstallServiceCommand = new RelayCommand(InstallService);
@@ -412,6 +498,16 @@ namespace RotinaRemote.Client.ViewModels
             StopServiceCommand = new RelayCommand(StopService);
             UninstallServiceCommand = new RelayCommand(UninstallService);
             RefreshServiceStatusCommand = new RelayCommand(RefreshServiceStatus);
+
+            _incomingDurationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _incomingDurationTimer.Tick += (s, e) =>
+            {
+                if (ActiveIncomingConnection != null && ActiveIncomingConnection.IsActive)
+                {
+                    ActiveIncomingConnection.NotifyDurationChanged();
+                }
+            };
+            _incomingDurationTimer.Start();
 
             RefreshServiceStatus();
         }
@@ -443,6 +539,208 @@ namespace RotinaRemote.Client.ViewModels
                             break;
                     }
                 });
+            });
+        }
+
+        public void RefreshConnectionsState()
+        {
+            OnPropertyChanged(nameof(ExecutionModeText));
+            OnPropertyChanged(nameof(IsRunningAsService));
+            OnPropertyChanged(nameof(ActiveIncomingConnectionsCount));
+            OnPropertyChanged(nameof(TotalIncomingConnectionsCount));
+            OnPropertyChanged(nameof(HasActiveIncomingConnection));
+            OnPropertyChanged(nameof(IsNoIncomingConnectionActive));
+            RefreshServiceStatus();
+        }
+
+        public void ClearIncomingHistory()
+        {
+            var activeItems = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(IncomingConnections, c => c.IsActive));
+            IncomingConnections.Clear();
+            foreach (var a in activeItems)
+            {
+                IncomingConnections.Add(a);
+            }
+            OnPropertyChanged(nameof(TotalIncomingConnectionsCount));
+        }
+
+        public void DisconnectIncomingSession(IncomingConnectionItem? item = null)
+        {
+            try
+            {
+                AppLogger.LogInfo("RemoteSession", "[HOST ACTION] Desconexão manual acionada pelo utilizador no separador Ligações.");
+                _sessionMonitoringCts?.Cancel();
+                if (_incomingSession != null)
+                {
+                    try { _incomingSession.Close(); } catch { }
+                    _incomingSession = null;
+                }
+                _streamingCts?.Cancel();
+                DisplayResolutionManager.RestoreOriginalResolution();
+                _screenCapturer.ClearTargetResolution();
+                _incomingClientScreenWidth = 0;
+                _incomingClientScreenHeight = 0;
+
+                if (_config.BlockRemoteInput)
+                {
+                    InputInjector.SetBlockLocalInput(false);
+                }
+
+                if (!string.IsNullOrEmpty(_activeConnectedTargetId))
+                {
+                    ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
+                    _activeConnectedTargetId = null;
+                }
+
+                var target = item ?? ActiveIncomingConnection;
+                if (target != null)
+                {
+                    target.IsActive = false;
+                    target.EndTime = DateTime.Now;
+                    target.Status = "Terminada pelo Anfitrião";
+                }
+
+                ActiveIncomingConnection = null;
+                ConnectionStatus = "Pronto";
+                OnPropertyChanged(nameof(HasActiveIncomingConnection));
+                OnPropertyChanged(nameof(IsNoIncomingConnectionActive));
+                OnPropertyChanged(nameof(ActiveIncomingConnectionsCount));
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("RemoteSession", "Erro ao desconectar ligação de entrada", ex);
+            }
+        }
+
+        private void KillIncomingSession(IncomingConnectionItem? item = null)
+        {
+            try
+            {
+                AppLogger.LogWarning("RemoteSession", "[KILL SESSION] Ordem de KILL imediato acionada pelo utilizador. A forçar encerramento total da sessão!");
+
+                _sessionMonitoringCts?.Cancel();
+                _streamingCts?.Cancel();
+
+                try
+                {
+                    DisplayResolutionManager.RestoreOriginalResolution();
+                    _screenCapturer.ClearTargetResolution();
+                }
+                catch { }
+
+                try { InputInjector.SetBlockLocalInput(false); } catch { }
+
+                _incomingClientScreenWidth = 0;
+                _incomingClientScreenHeight = 0;
+
+                if (_incomingSession != null)
+                {
+                    try { _incomingSession.Close(); } catch { }
+                    _incomingSession = null;
+                }
+
+                if (_activeSession != null)
+                {
+                    try { _activeSession.Close(); } catch { }
+                    _activeSession = null;
+                }
+
+                var target = item ?? ActiveIncomingConnection;
+                if (target != null)
+                {
+                    target.IsActive = false;
+                    target.EndTime = DateTime.Now;
+                    target.Status = "💀 Morta Forçadamente (KILL)";
+                }
+
+                if (ActiveIncomingConnection != null)
+                {
+                    ActiveIncomingConnection.IsActive = false;
+                    ActiveIncomingConnection.EndTime = DateTime.Now;
+                    ActiveIncomingConnection.Status = "💀 Morta Forçadamente (KILL)";
+                    ActiveIncomingConnection = null;
+                }
+
+                if (!string.IsNullOrEmpty(_activeConnectedTargetId))
+                {
+                    ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
+                    _activeConnectedTargetId = null;
+                }
+
+                IsConnected = false;
+                RemoteScreenSource = null;
+                ConnectionStatus = "Sessão Terminada (KILL)";
+
+                RefreshConnectionsState();
+                AppLogger.LogInfo("RemoteSession", "[KILL SESSION] Sessão terminada forçadamente com sucesso.");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("RemoteSession", "Erro ao executar KILL na sessão", ex);
+            }
+        }
+
+        private void SendRemoteMinimize()
+        {
+            if (_activeSession != null && _activeSession.IsConnected)
+            {
+                // Win + Down
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x5B });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x28 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x28 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x5B });
+                AppLogger.LogInfo("RemoteSession", "[CLIENT COMMAND] Teclas Win+Down enviadas ao host para minimizar janela ativa.");
+            }
+        }
+
+        private void SendRemoteMaximize()
+        {
+            if (_activeSession != null && _activeSession.IsConnected)
+            {
+                // Win + Up
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x5B });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x26 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x26 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x5B });
+                AppLogger.LogInfo("RemoteSession", "[CLIENT COMMAND] Teclas Win+Up enviadas ao host para maximizar janela ativa.");
+            }
+        }
+
+        private void SendRemoteClose()
+        {
+            if (_activeSession != null && _activeSession.IsConnected)
+            {
+                // Alt + F4
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x12 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x73 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x73 });
+                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x12 });
+                AppLogger.LogInfo("RemoteSession", "[CLIENT COMMAND] Teclas Alt+F4 enviadas ao host para fechar janela ativa.");
+            }
+        }
+
+        private void MinimizeLocalWindow()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow != null)
+                {
+                    System.Windows.Application.Current.MainWindow.WindowState = WindowState.Minimized;
+                }
+            });
+        }
+
+        private void MaximizeLocalWindow()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow != null)
+                {
+                    System.Windows.Application.Current.MainWindow.WindowState =
+                        System.Windows.Application.Current.MainWindow.WindowState == WindowState.Maximized
+                            ? WindowState.Normal
+                            : WindowState.Maximized;
+                }
             });
         }
 
@@ -549,6 +847,32 @@ namespace RotinaRemote.Client.ViewModels
                 }
                 catch { }
 
+                var connItem = new IncomingConnectionItem
+                {
+                    ConnectionId = Guid.NewGuid().ToString("N").Substring(0, 8),
+                    RemoteDeviceId = callerId,
+                    RemoteIp = callerIp,
+                    City = callerCity,
+                    Country = callerCountry,
+                    Location = callerLocation,
+                    TransportType = !string.IsNullOrWhiteSpace(_config.RelayServerUrl) ? "Relay Nuvem" : "P2P Direto / STUN",
+                    Permission = "A aguardar aprovação...",
+                    ClientResolution = (_incomingClientScreenWidth > 0 && _incomingClientScreenHeight > 0)
+                        ? $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}"
+                        : "Automática / Padrão",
+                    StartTime = DateTime.Now,
+                    Status = "A validar acesso...",
+                    IsActive = false,
+                    TargetRotinaId = _identity.FormattedId,
+                    ExecutionMode = IsRunningAsService ? "Serviço Windows" : "Aplicação Desktop"
+                };
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IncomingConnections.Insert(0, connItem);
+                    RefreshConnectionsState();
+                });
+
                 bool isApproved = false;
 
                 if (_config.EnableUnattendedAccess &&
@@ -575,6 +899,12 @@ namespace RotinaRemote.Client.ViewModels
 
                 if (!isApproved)
                 {
+                    connItem.Status = "Recusada pelo Anfitrião";
+                    connItem.IsActive = false;
+                    connItem.EndTime = DateTime.Now;
+                    connItem.Permission = "Recusado";
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(RefreshConnectionsState);
+
                     var rejectEndpointData = new SignalingEndpointInfo
                     {
                         Accepted = false,
@@ -585,6 +915,11 @@ namespace RotinaRemote.Client.ViewModels
                     AppLogger.LogInfo("MainViewModel", $"Pedido de ligação de {callerId} ({callerCity}, {callerCountry}) rejeitado pelo utilizador.");
                     return;
                 }
+
+                connItem.Status = "A estabelecer ligação...";
+                connItem.Permission = _activeIncomingPermission;
+                connItem.IsActive = true;
+                _pendingRelayConnectionItem = connItem;
 
                 string publicIp = string.Empty;
                 try
@@ -641,6 +976,20 @@ namespace RotinaRemote.Client.ViewModels
                         var stream = new WebSocketStream(ws, ownsSocket: true);
                         var session = new ConnectionSession(stream);
                         _incomingSession = session;
+
+                        var currentConn = _pendingRelayConnectionItem;
+                        if (currentConn != null)
+                        {
+                            currentConn.Status = "Ativa (Em Controlo)";
+                            currentConn.IsActive = true;
+                            currentConn.TransportType = "Servidor Relay WebSocket (Cloud)";
+                            currentConn.ClientResolution = (_incomingClientScreenWidth > 0 && _incomingClientScreenHeight > 0)
+                                ? $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}"
+                                : "Automática / Padrão";
+                            ActiveIncomingConnection = currentConn;
+                            System.Windows.Application.Current.Dispatcher.Invoke(RefreshConnectionsState);
+                        }
+
                         session.FrameReceived += OnInputFrameReceivedFromClient;
                         session.Disconnected += () =>
                         {
@@ -654,10 +1003,21 @@ namespace RotinaRemote.Client.ViewModels
                                 ShellAuditor.LogSessionEnded(_activeConnectedTargetId, DateTime.UtcNow - _sessionStartTime);
                                 _activeConnectedTargetId = null;
                             }
+                            if (currentConn != null)
+                            {
+                                currentConn.IsActive = false;
+                                currentConn.EndTime = DateTime.Now;
+                                currentConn.Status = "Terminada";
+                            }
+                            if (ActiveIncomingConnection == currentConn)
+                            {
+                                ActiveIncomingConnection = null;
+                            }
                             _incomingSession = null;
                             System.Windows.Application.Current.Dispatcher.Invoke(() =>
                             {
                                 ConnectionStatus = "Pronto";
+                                RefreshConnectionsState();
                             });
                         };
 
@@ -744,6 +1104,43 @@ namespace RotinaRemote.Client.ViewModels
                 catch { }
             }
 
+            // Check if this was initiated from a pending relay request
+            IncomingConnectionItem connItem;
+            if (_pendingRelayConnectionItem != null && !_pendingRelayConnectionItem.IsActive)
+            {
+                connItem = _pendingRelayConnectionItem;
+                _pendingRelayConnectionItem = null;
+                connItem.TransportType = "Servidor Relay TCP (Nuvem)";
+            }
+            else
+            {
+                connItem = new IncomingConnectionItem
+                {
+                    ConnectionId = Guid.NewGuid().ToString("N").Substring(0, 8),
+                    RemoteDeviceId = resolvedId,
+                    RemoteIp = remoteIp,
+                    City = city,
+                    Country = country,
+                    Location = location,
+                    TransportType = isLocal ? "P2P Local (LAN)" : "P2P Direto (TCP)",
+                    Permission = "A aguardar aprovação...",
+                    ClientResolution = (_incomingClientScreenWidth > 0 && _incomingClientScreenHeight > 0)
+                        ? $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}"
+                        : "Automática / Padrão",
+                    StartTime = DateTime.Now,
+                    Status = "A validar acesso...",
+                    IsActive = false,
+                    TargetRotinaId = _identity.FormattedId,
+                    ExecutionMode = IsRunningAsService ? "Serviço Windows" : "Aplicação Desktop"
+                };
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IncomingConnections.Insert(0, connItem);
+                    RefreshConnectionsState();
+                });
+            }
+
             var session = new ConnectionSession(socket);
             bool isApproved = false;
             HandshakeRequestPayload? handshakePayload = null;
@@ -769,10 +1166,16 @@ namespace RotinaRemote.Client.ViewModels
             if (completed == hsTcs.Task && hsTcs.Task.Result != null)
             {
                 handshakePayload = hsTcs.Task.Result;
+                if (!string.IsNullOrWhiteSpace(handshakePayload.ClientDeviceId))
+                {
+                    resolvedId = handshakePayload.ClientDeviceId;
+                    connItem.RemoteDeviceId = resolvedId;
+                }
                 if (handshakePayload.ClientScreenWidth > 0 && handshakePayload.ClientScreenHeight > 0)
                 {
                     _incomingClientScreenWidth = handshakePayload.ClientScreenWidth;
                     _incomingClientScreenHeight = handshakePayload.ClientScreenHeight;
+                    connItem.ClientResolution = $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}";
                     AppLogger.LogInfo("MainViewModel", $"[RESOLUTION] Resolução do cliente recebida via handshake P2P: {_incomingClientScreenWidth}x{_incomingClientScreenHeight}");
                 }
             }
@@ -804,6 +1207,16 @@ namespace RotinaRemote.Client.ViewModels
             {
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    connItem.Status = "Ativa (Em Controlo)";
+                    connItem.Permission = _activeIncomingPermission;
+                    connItem.IsActive = true;
+                    if (_incomingClientScreenWidth > 0 && _incomingClientScreenHeight > 0)
+                    {
+                        connItem.ClientResolution = $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}";
+                    }
+                    ActiveIncomingConnection = connItem;
+                    RefreshConnectionsState();
+
                     _incomingSession = session;
                     session.FrameReceived += OnInputFrameReceivedFromClient;
                     session.Disconnected += () =>
@@ -823,9 +1236,17 @@ namespace RotinaRemote.Client.ViewModels
                             InputInjector.SetBlockLocalInput(false);
                         }
                         _incomingSession = null;
+                        connItem.IsActive = false;
+                        connItem.EndTime = DateTime.Now;
+                        connItem.Status = "Terminada";
+                        if (ActiveIncomingConnection == connItem)
+                        {
+                            ActiveIncomingConnection = null;
+                        }
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
                         {
                             ConnectionStatus = "Pronto";
+                            RefreshConnectionsState();
                         });
                     };
                     ConnectionStatus = "Sessão Ativa com " + resolvedId;
@@ -834,7 +1255,7 @@ namespace RotinaRemote.Client.ViewModels
                     _ = ShellAuditor.AuditConnectionAtConnectAsync(
                         direction: "Entrada (Host / Anfitrião controlado via Rede Local)",
                         targetId: resolvedId,
-                        transportName: "Direto (P2P Local)",
+                        transportName: connItem.TransportType,
                         cloudServerUrl: _config.SignalingServerUrl);
 
                     _sessionMonitoringCts?.Cancel();
@@ -846,6 +1267,12 @@ namespace RotinaRemote.Client.ViewModels
             }
             else
             {
+                connItem.Status = "Recusada pelo Anfitrião";
+                connItem.IsActive = false;
+                connItem.EndTime = DateTime.Now;
+                connItem.Permission = "Recusado";
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(RefreshConnectionsState);
+
                 try { session.Dispose(); } catch { }
                 try { socket.Close(); } catch { }
             }
@@ -1594,6 +2021,14 @@ namespace RotinaRemote.Client.ViewModels
             {
                 _incomingSession.Close();
                 _incomingSession = null;
+            }
+            if (ActiveIncomingConnection != null)
+            {
+                ActiveIncomingConnection.IsActive = false;
+                ActiveIncomingConnection.EndTime = DateTime.Now;
+                ActiveIncomingConnection.Status = "Terminada";
+                ActiveIncomingConnection = null;
+                RefreshConnectionsState();
             }
             IsConnected = false;
             RemoteScreenSource = null;

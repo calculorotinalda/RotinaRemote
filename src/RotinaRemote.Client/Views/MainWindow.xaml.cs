@@ -17,6 +17,13 @@ namespace RotinaRemote.Client.Views
         {
             InitializeComponent();
             Loaded += MainWindow_Loaded;
+            Deactivated += (s, e) =>
+            {
+                if (RemoteScreenImage.IsMouseCaptured)
+                {
+                    RemoteScreenImage.ReleaseMouseCapture();
+                }
+            };
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -152,13 +159,18 @@ namespace RotinaRemote.Client.Views
         private void OnRemoteScreenMouseDown(object sender, MouseButtonEventArgs e)
         {
             RemoteScreenImage.Focus();
-            RemoteScreenImage.CaptureMouse();
             var pos = e.GetPosition(RemoteScreenImage);
             if (!GetNormalizedCoordinates(pos, out double normX, out double normY))
             {
+                if (RemoteScreenImage.IsMouseCaptured)
+                {
+                    RemoteScreenImage.ReleaseMouseCapture();
+                }
                 RotinaRemote.Core.Logging.AppLogger.LogWarning("RemoteSession", $"[CLIENT MOUSE DOWN] Clique {e.ChangedButton} ignorado fora dos limites do ecrã remoto em ({pos.X:F1}, {pos.Y:F1}).");
                 return;
             }
+
+            RemoteScreenImage.CaptureMouse();
 
             var now = DateTime.UtcNow;
 

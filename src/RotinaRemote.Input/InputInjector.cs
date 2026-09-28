@@ -141,6 +141,41 @@ namespace RotinaRemote.Input
         [DllImport("user32.dll")]
         private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsZoomed(IntPtr hWnd);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        private const uint WM_NCHITTEST = 0x0084;
+        private const uint WM_NCLBUTTONDOWN = 0x00A1;
+        private const uint WM_NCLBUTTONUP = 0x00A2;
+        private const uint WM_SYSCOMMAND = 0x0112;
+
+        private const IntPtr SC_MINIMIZE = (IntPtr)0xF020;
+        private const IntPtr SC_MAXIMIZE = (IntPtr)0xF030;
+        private const IntPtr SC_RESTORE = (IntPtr)0xF120;
+        private const IntPtr SC_CLOSE = (IntPtr)0xF060;
+
+        private const int HTCLIENT = 1;
+        private const int HTCAPTION = 2;
+        private const int HTSYSMENU = 3;
+        private const int HTMINBUTTON = 8;
+        private const int HTMAXBUTTON = 9;
+        private const int HTCLOSE = 20;
+
         private const uint WM_LBUTTONDOWN = 0x0201;
         private const uint WM_LBUTTONUP = 0x0202;
         private const uint WM_LBUTTONDBLCLK = 0x0203;
@@ -416,6 +451,7 @@ namespace RotinaRemote.Input
                 {
                     // 1. Localização da janela de destino sob o cursor e ativação de foco
                     IntPtr targetWnd = IntPtr.Zero;
+                    IntPtr rootWnd = IntPtr.Zero;
                     uint targetThread = 0;
                     uint curThread = GetCurrentThreadId();
 
@@ -425,23 +461,73 @@ namespace RotinaRemote.Input
                         targetWnd = WindowFromPoint(pt);
                         if (targetWnd != IntPtr.Zero)
                         {
-                            IntPtr rootWnd = GetAncestor(targetWnd, GA_ROOT);
-                            if (rootWnd != IntPtr.Zero)
+                            rootWnd = GetAncestor(targetWnd, GA_ROOT);
+                            if (rootWnd == IntPtr.Zero) rootWnd = targetWnd;
+
+                            IntPtr fgWnd = GetForegroundWindow();
+                            if (fgWnd != rootWnd)
                             {
-                                IntPtr fgWnd = GetForegroundWindow();
-                                if (fgWnd != rootWnd)
-                                {
-                                    SetForegroundWindow(rootWnd);
-                                }
-                                targetThread = GetWindowThreadProcessId(rootWnd, out _);
-                                if (targetThread != 0 && targetThread != curThread)
-                                {
-                                    AttachThreadInput(curThread, targetThread, true);
-                                }
+                                SetForegroundWindow(rootWnd);
+                            }
+                            targetThread = GetWindowThreadProcessId(rootWnd, out _);
+                            if (targetThread != 0 && targetThread != curThread)
+                            {
+                                AttachThreadInput(curThread, targetThread, true);
                             }
                         }
                     }
                     catch { }
+
+                    // Deteção inteligente de Botões da Barra de Título (Fechar, Maximizar/Restaurar, Minimizar)
+                    IntPtr hit = IntPtr.Zero;
+                    IntPtr screenLParam = (IntPtr)((targetY << 16) | (targetX & 0xFFFF));
+                    if (targetWnd != IntPtr.Zero)
+                    {
+                        try
+                        {
+                            hit = SendMessage(targetWnd, WM_NCHITTEST, IntPtr.Zero, screenLParam);
+                            if ((hit == IntPtr.Zero || hit == (IntPtr)(-1) || hit == (IntPtr)HTCLIENT) && rootWnd != IntPtr.Zero && rootWnd != targetWnd)
+                            {
+                                var hitRoot = SendMessage(rootWnd, WM_NCHITTEST, IntPtr.Zero, screenLParam);
+                                if (hitRoot != IntPtr.Zero && hitRoot != (IntPtr)(-1) && hitRoot != (IntPtr)HTCLIENT)
+                                {
+                                    hit = hitRoot;
+                                }
+                            }
+                        }
+                        catch { }
+                    }
+
+                    bool isTitleBarZone = false;
+                    bool isCloseButtonZone = false;
+                    bool isMaximizeButtonZone = false;
+                    bool isMinimizeButtonZone = false;
+
+                    IntPtr effectiveWnd = rootWnd != IntPtr.Zero ? rootWnd : targetWnd;
+                    if (effectiveWnd != IntPtr.Zero && GetWindowRect(effectiveWnd, out RECT winRect))
+                    {
+                        int winHeight = winRect.Bottom - winRect.Top;
+                        int winWidth = winRect.Right - winRect.Left;
+                        if (winWidth > 100 && winHeight > 40)
+                        {
+                            if (targetY >= winRect.Top && targetY <= winRect.Top + 40 && targetX >= winRect.Left && targetX <= winRect.Right)
+                            {
+                                isTitleBarZone = true;
+                                if (targetX >= winRect.Right - 50 && targetX <= winRect.Right)
+                                {
+                                    isCloseButtonZone = true;
+                                }
+                                else if (targetX >= winRect.Right - 98 && targetX < winRect.Right - 50)
+                                {
+                                    isMaximizeButtonZone = true;
+                                }
+                                else if (targetX >= winRect.Right - 146 && targetX < winRect.Right - 98)
+                                {
+                                    isMinimizeButtonZone = true;
+                                }
+                            }
+                        }
+                    }
 
                     // Canal 1: SendInput com coordenadas absolutas e pacote atómico de movimento + clique
                     uint clickDwFlags = clickFlags | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
@@ -492,53 +578,103 @@ namespace RotinaRemote.Input
                     }
 
                     // Canal 2: mouse_event direto relativo ao cursor (Redundância para contornar ESET ehdrv.sys e UIPI)
-                    // Este canal contorna a interceção de API do ESET e filtros que bloqueiam apenas a API SendInput
                     try
                     {
                         mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
                     }
                     catch { }
 
-                    // Canal 3: Despacho direto de mensagens à janela via PostMessage
-                    // Garante que controlos de interface (botões, listas, caixas de diálogo) recebam o clique mesmo com filtros de driver
-                    if (targetWnd != IntPtr.Zero)
+                    // Canal 3: Despacho direto de mensagens à janela e tratamento dedicado de botões de controlo de janela
+                    if (effectiveWnd != IntPtr.Zero)
                     {
                         try
                         {
-                            var clientPt = new POINT { x = targetX, y = targetY };
-                            ScreenToClient(targetWnd, ref clientPt);
-                            IntPtr lParam = (IntPtr)((clientPt.y << 16) | (clientPt.x & 0xFFFF));
-
-                            uint msg = 0;
-                            IntPtr wParam = IntPtr.Zero;
-                            switch (type)
+                            if (type == MouseEventType.LeftDown)
                             {
-                                case MouseEventType.LeftDown:
-                                    msg = WM_LBUTTONDOWN;
-                                    wParam = (IntPtr)MK_LBUTTON;
-                                    break;
-                                case MouseEventType.LeftUp:
-                                    msg = WM_LBUTTONUP;
-                                    break;
-                                case MouseEventType.RightDown:
-                                    msg = WM_RBUTTONDOWN;
-                                    wParam = (IntPtr)MK_RBUTTON;
-                                    break;
-                                case MouseEventType.RightUp:
-                                    msg = WM_RBUTTONUP;
-                                    break;
-                                case MouseEventType.MiddleDown:
-                                    msg = WM_MBUTTONDOWN;
-                                    wParam = (IntPtr)MK_MBUTTON;
-                                    break;
-                                case MouseEventType.MiddleUp:
-                                    msg = WM_MBUTTONUP;
-                                    break;
+                                if (hit == (IntPtr)HTCLOSE || isCloseButtonZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONDOWN, (IntPtr)HTCLOSE, screenLParam);
+                                    AppLogger.LogInfo("RemoteSession", $"[WINDOW CONTROL] WM_NCLBUTTONDOWN (HTCLOSE) enviado para {effectiveWnd}.");
+                                }
+                                else if (hit == (IntPtr)HTMAXBUTTON || isMaximizeButtonZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONDOWN, (IntPtr)HTMAXBUTTON, screenLParam);
+                                    AppLogger.LogInfo("RemoteSession", $"[WINDOW CONTROL] WM_NCLBUTTONDOWN (HTMAXBUTTON) enviado para {effectiveWnd}.");
+                                }
+                                else if (hit == (IntPtr)HTMINBUTTON || isMinimizeButtonZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONDOWN, (IntPtr)HTMINBUTTON, screenLParam);
+                                    AppLogger.LogInfo("RemoteSession", $"[WINDOW CONTROL] WM_NCLBUTTONDOWN (HTMINBUTTON) enviado para {effectiveWnd}.");
+                                }
+                                else if (hit == (IntPtr)HTCAPTION || isTitleBarZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, screenLParam);
+                                }
+                            }
+                            else if (type == MouseEventType.LeftUp)
+                            {
+                                if (hit == (IntPtr)HTCLOSE || isCloseButtonZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONUP, (IntPtr)HTCLOSE, screenLParam);
+                                    PostMessage(effectiveWnd, WM_SYSCOMMAND, SC_CLOSE, IntPtr.Zero);
+                                    AppLogger.LogInfo("RemoteSession", $"[WINDOW CONTROL] Comando FECHAR JANELA (SC_CLOSE) acionado para {effectiveWnd}.");
+                                }
+                                else if (hit == (IntPtr)HTMAXBUTTON || isMaximizeButtonZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONUP, (IntPtr)HTMAXBUTTON, screenLParam);
+                                    IntPtr cmd = IsZoomed(effectiveWnd) ? SC_RESTORE : SC_MAXIMIZE;
+                                    PostMessage(effectiveWnd, WM_SYSCOMMAND, cmd, IntPtr.Zero);
+                                    AppLogger.LogInfo("RemoteSession", $"[WINDOW CONTROL] Comando MAXIMIZAR/RESTAURAR ({cmd}) acionado para {effectiveWnd}.");
+                                }
+                                else if (hit == (IntPtr)HTMINBUTTON || isMinimizeButtonZone)
+                                {
+                                    PostMessage(effectiveWnd, WM_NCLBUTTONUP, (IntPtr)HTMINBUTTON, screenLParam);
+                                    PostMessage(effectiveWnd, WM_SYSCOMMAND, SC_MINIMIZE, IntPtr.Zero);
+                                    AppLogger.LogInfo("RemoteSession", $"[WINDOW CONTROL] Comando MINIMIZAR (SC_MINIMIZE) acionado para {effectiveWnd}.");
+                                }
                             }
 
-                            if (msg != 0)
+                            // Apenas envia WM_LBUTTONDOWN/UP para a área de cliente se o clique não for na barra de controlo da janela
+                            if (!isCloseButtonZone && !isMaximizeButtonZone && !isMinimizeButtonZone &&
+                                hit != (IntPtr)HTCLOSE && hit != (IntPtr)HTMAXBUTTON && hit != (IntPtr)HTMINBUTTON && hit != (IntPtr)HTCAPTION)
                             {
-                                PostMessage(targetWnd, msg, wParam, lParam);
+                                var clientPt = new POINT { x = targetX, y = targetY };
+                                ScreenToClient(targetWnd, ref clientPt);
+                                if (clientPt.x >= 0 && clientPt.y >= 0)
+                                {
+                                    IntPtr lParam = (IntPtr)((clientPt.y << 16) | (clientPt.x & 0xFFFF));
+                                    uint msg = 0;
+                                    IntPtr wParam = IntPtr.Zero;
+                                    switch (type)
+                                    {
+                                        case MouseEventType.LeftDown:
+                                            msg = WM_LBUTTONDOWN;
+                                            wParam = (IntPtr)MK_LBUTTON;
+                                            break;
+                                        case MouseEventType.LeftUp:
+                                            msg = WM_LBUTTONUP;
+                                            break;
+                                        case MouseEventType.RightDown:
+                                            msg = WM_RBUTTONDOWN;
+                                            wParam = (IntPtr)MK_RBUTTON;
+                                            break;
+                                        case MouseEventType.RightUp:
+                                            msg = WM_RBUTTONUP;
+                                            break;
+                                        case MouseEventType.MiddleDown:
+                                            msg = WM_MBUTTONDOWN;
+                                            wParam = (IntPtr)MK_MBUTTON;
+                                            break;
+                                        case MouseEventType.MiddleUp:
+                                            msg = WM_MBUTTONUP;
+                                            break;
+                                    }
+
+                                    if (msg != 0)
+                                    {
+                                        PostMessage(targetWnd, msg, wParam, lParam);
+                                    }
+                                }
                             }
                         }
                         catch { }
@@ -612,6 +748,55 @@ namespace RotinaRemote.Input
                 AppLogger.LogError("InputInjector", $"Erro ao alterar BlockInput para {block}", ex);
                 return false;
             }
+        }
+
+        public static void MinimizeActiveWindow()
+        {
+            try
+            {
+                IntPtr fg = GetForegroundWindow();
+                if (fg != IntPtr.Zero)
+                {
+                    IntPtr root = GetAncestor(fg, GA_ROOT);
+                    IntPtr target = root != IntPtr.Zero ? root : fg;
+                    PostMessage(target, WM_SYSCOMMAND, SC_MINIMIZE, IntPtr.Zero);
+                    AppLogger.LogInfo("InputInjector", $"[WINDOW ACTION] Minimizar disparado para a janela ativa ({target}).");
+                }
+            }
+            catch { }
+        }
+
+        public static void MaximizeOrRestoreActiveWindow()
+        {
+            try
+            {
+                IntPtr fg = GetForegroundWindow();
+                if (fg != IntPtr.Zero)
+                {
+                    IntPtr root = GetAncestor(fg, GA_ROOT);
+                    IntPtr target = root != IntPtr.Zero ? root : fg;
+                    IntPtr cmd = IsZoomed(target) ? SC_RESTORE : SC_MAXIMIZE;
+                    PostMessage(target, WM_SYSCOMMAND, cmd, IntPtr.Zero);
+                    AppLogger.LogInfo("InputInjector", $"[WINDOW ACTION] Maximizar/Restaurar ({cmd}) disparado para a janela ativa ({target}).");
+                }
+            }
+            catch { }
+        }
+
+        public static void CloseActiveWindow()
+        {
+            try
+            {
+                IntPtr fg = GetForegroundWindow();
+                if (fg != IntPtr.Zero)
+                {
+                    IntPtr root = GetAncestor(fg, GA_ROOT);
+                    IntPtr target = root != IntPtr.Zero ? root : fg;
+                    PostMessage(target, WM_SYSCOMMAND, SC_CLOSE, IntPtr.Zero);
+                    AppLogger.LogInfo("InputInjector", $"[WINDOW ACTION] Fechar Janela disparado para a janela ativa ({target}).");
+                }
+            }
+            catch { }
         }
     }
 }

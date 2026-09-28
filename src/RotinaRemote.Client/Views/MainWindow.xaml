@@ -125,17 +125,235 @@
                         <DockPanel>
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                 <TextBlock Text="Transporte: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
-                                <TextBlock Text="{Binding TransportType}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,16,0" />
+                                <TextBlock Text="{Binding TransportType}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" Margin="0,0,14,0" />
 
                                 <TextBlock Text="Latência: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
-                                <TextBlock Text="{Binding LatencyMs, StringFormat='{}{0} ms'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" Margin="0,0,16,0" />
+                                <TextBlock Text="{Binding LatencyMs, StringFormat='{}{0} ms'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" Margin="0,0,14,0" />
 
                                 <TextBlock Text="FPS: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
-                                <TextBlock Text="{Binding Fps}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                <TextBlock Text="{Binding Fps}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,18,0" />
+
+                                <!-- Controlos de Janela Remota -->
+                                <TextBlock Text="Janela Remota: " FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <Button Content="🗕 Min" Command="{Binding SendRemoteMinimizeCommand}" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Padding="8,3" Margin="0,0,4,0" FontSize="11" ToolTip="Minimiza a janela ativa no computador remoto (Win+Down)" />
+                                <Button Content="🗖 Max" Command="{Binding SendRemoteMaximizeCommand}" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Padding="8,3" Margin="0,0,4,0" FontSize="11" ToolTip="Maximiza/Restaura a janela ativa no computador remoto (Win+Up)" />
+                                <Button Content="✕ Fechar" Command="{Binding SendRemoteCloseCommand}" Background="#7F1D1D" Foreground="White" Padding="8,3" Margin="0,0,14,0" FontSize="11" ToolTip="Fecha a janela ativa no computador remoto (Alt+F4)" />
+
+                                <!-- Controlos desta Janela Local -->
+                                <TextBlock Text="Janela Local: " FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <Button Content="🗕 Min" Command="{Binding MinimizeLocalWindowCommand}" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Padding="8,3" Margin="0,0,4,0" FontSize="11" ToolTip="Minimiza a janela local do RotinaRemote" />
+                                <Button Content="🗖 Max" Command="{Binding MaximizeLocalWindowCommand}" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Padding="8,3" FontSize="11" ToolTip="Maximiza/Restaura a janela local do RotinaRemote" />
                             </StackPanel>
 
-                            <Button Content="Desconectar" Command="{Binding DisconnectCommand}" Background="{DynamicResource AccentRed}" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="14,4"/>
+                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                <Button Content="Desconectar" Command="{Binding DisconnectCommand}" Background="{DynamicResource AccentRed}" Padding="14,4"/>
+                            </StackPanel>
                         </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- Separador 2: Ligações (Acesso ao ID desta Máquina) -->
+            <TabItem FontSize="14" FontWeight="SemiBold">
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Ligações" VerticalAlignment="Center" />
+                        <Border Background="{DynamicResource AccentGreen}" CornerRadius="10" Margin="8,0,0,0" Padding="6,1" VerticalAlignment="Center"
+                                Visibility="{Binding HasActiveIncomingConnection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="{Binding ActiveIncomingConnectionsCount}" FontSize="11" FontWeight="Bold" Foreground="White" />
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+                <Grid Margin="0,16,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Painel Superior: Estado do ID e Modo de Execução -->
+                    <Border Grid.Row="0" Background="{DynamicResource SecondaryBackground}" CornerRadius="8" Padding="16,14" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="🔗 Monitor de Ligações de Entrada" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" VerticalAlignment="Center" />
+                                    <Border Background="{DynamicResource CardBackground}" CornerRadius="4" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding MyDeviceId, StringFormat='O Meu ID: {0}'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" />
+                                    </Border>
+                                </StackPanel>
+
+                                <DockPanel Margin="0,2,0,4">
+                                    <TextBlock Text="Modo Operacional: " FontSize="12" Foreground="{DynamicResource TextSecondary}" />
+                                    <TextBlock Text="{Binding ExecutionModeText}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                </DockPanel>
+
+                                <TextBlock Text="{Binding ServiceNoticeText}" FontSize="11" Foreground="{DynamicResource AccentGreen}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="🔄 Atualizar" Command="{Binding RefreshConnectionsCommand}" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextPrimary}" Padding="12,6" Margin="0,0,8,0" />
+                                <Button Content="💀 KILL GERAL" Command="{Binding KillSessionCommand}" Background="#7F1D1D" Foreground="White" FontWeight="Bold" Padding="12,6" Margin="0,0,8,0" ToolTip="Mata e encerra qualquer sessão de entrada ativa imediatamente" />
+                                <Button Content="🗑️ Limpar Lista" Command="{Binding ClearIncomingHistoryCommand}" Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextSecondary}" Padding="12,6" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Cartão Dinâmico de Sessão Ativa OU Em Espera -->
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <!-- Caso 1: Sessão Ativa a Controlar este PC -->
+                        <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource AccentRed}" BorderThickness="1.5" CornerRadius="8" Padding="16"
+                                Visibility="{Binding HasActiveIncomingConnection, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,12">
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                                        <Ellipse Width="12" Height="12" Fill="{DynamicResource AccentRed}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="SESSÃO REMOTA ATIVA A CONTROLAR ESTE COMPUTADOR" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentRed}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                        <Button Content="⛔ DESCONECTAR" Command="{Binding DisconnectIncomingCommand}" CommandParameter="{Binding ActiveIncomingConnection}"
+                                                Background="{DynamicResource AccentRed}" Foreground="White" FontWeight="Bold" Padding="12,6" Margin="0,0,8,0" />
+                                        <Button Content="💀 KILL SESSÃO" Command="{Binding KillSessionCommand}" CommandParameter="{Binding ActiveIncomingConnection}"
+                                                Background="#7F1D1D" Foreground="White" FontWeight="Bold" Padding="14,6" ToolTip="Força a terminação imediata (KILL) da sessão e liberta todos os recursos" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Linha 1 -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,8">
+                                        <TextBlock Text="ID Remoto:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.RemoteDeviceId}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,8">
+                                        <TextBlock Text="IP de Origem:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.RemoteIp}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,8">
+                                        <TextBlock Text="Localização:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.Location}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBlue}" />
+                                    </StackPanel>
+
+                                    <!-- Linha 2 -->
+                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,12,8">
+                                        <TextBlock Text="Transporte:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.TransportType}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,12,8">
+                                        <TextBlock Text="Permissões Concedidas:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.Permission}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,8">
+                                        <TextBlock Text="Resolução do Cliente:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.ClientResolution}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    </StackPanel>
+
+                                    <!-- Linha 3 -->
+                                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,12,0">
+                                        <TextBlock Text="Início da Ligação:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.StartTimeFormatted}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,0,12,0">
+                                        <TextBlock Text="Tempo em Controlo:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.DurationFormatted}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentGreen}" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,0">
+                                        <TextBlock Text="Modo Operacional:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <TextBlock Text="{Binding ActiveIncomingConnection.ExecutionMode}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Caso 2: Em Espera / Nenhuma Sessão Ativa -->
+                        <Border Background="{DynamicResource SecondaryBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="8" Padding="16,12"
+                                Visibility="{Binding IsNoIncomingConnectionActive, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <DockPanel>
+                                <TextBlock Text="🛡️" FontSize="24" Margin="0,0,14,0" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Pronto e em escuta de novas ligações" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
+                                    <TextBlock Text="Nenhum cliente remoto está conectado a este computador no momento. Todas as tentativas e sessões serão listadas abaixo em tempo real." FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Tabela / Grelha com Todas as Ligações e Histórico de Acessos -->
+                    <Border Grid.Row="2" Background="{DynamicResource SecondaryBackground}" CornerRadius="8" Padding="12">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="📋 Registo de Ligações de Entrada e Tentativas de Acesso" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="4,0,0,8" />
+
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding IncomingConnections}" AutoGenerateColumns="False" IsReadOnly="True"
+                                      Background="Transparent" Foreground="{DynamicResource TextPrimary}" RowBackground="{DynamicResource SecondaryBackground}"
+                                      AlternatingRowBackground="{DynamicResource CardBackground}" BorderThickness="0" GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="{DynamicResource BorderColor}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Estado" Binding="{Binding Status}" Width="150" />
+                                    <DataGridTextColumn Header="ID Remoto" Binding="{Binding RemoteDeviceId}" Width="130" />
+                                    <DataGridTextColumn Header="IP Remoto" Binding="{Binding RemoteIp}" Width="120" />
+                                    <DataGridTextColumn Header="Localização" Binding="{Binding Location}" Width="140" />
+                                    <DataGridTextColumn Header="Transporte" Binding="{Binding TransportType}" Width="130" />
+                                    <DataGridTextColumn Header="Permissão" Binding="{Binding Permission}" Width="120" />
+                                    <DataGridTextColumn Header="Resolução" Binding="{Binding ClientResolution}" Width="110" />
+                                    <DataGridTextColumn Header="Início" Binding="{Binding StartTimeFormatted}" Width="130" />
+                                    <DataGridTextColumn Header="Duração" Binding="{Binding DurationFormatted}" Width="90" />
+                                    <DataGridTextColumn Header="Modo" Binding="{Binding ExecutionMode}" Width="130" />
+                                    <DataGridTemplateColumn Header="Ações" Width="160">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button Content="Desconectar"
+                                                            Command="{Binding DataContext.DisconnectIncomingCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="{DynamicResource AccentRed}"
+                                                            Foreground="White"
+                                                            Padding="6,2"
+                                                            Margin="2"
+                                                            FontSize="11"
+                                                            Visibility="{Binding IsActive, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                                    <Button Content="KILL"
+                                                            Command="{Binding DataContext.KillSessionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"
+                                                            Background="#7F1D1D"
+                                                            Foreground="White"
+                                                            FontWeight="Bold"
+                                                            Padding="8,2"
+                                                            Margin="2"
+                                                            FontSize="11"
+                                                            Visibility="{Binding IsActive, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                            ToolTip="Mata a sessão forçadamente (KILL)" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
                     </Border>
                 </Grid>
             </TabItem>
