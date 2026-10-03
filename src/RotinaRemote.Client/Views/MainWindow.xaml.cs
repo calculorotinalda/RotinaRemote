@@ -28,6 +28,22 @@ namespace RotinaRemote.Client.Views
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            try
+            {
+                var workArea = SystemParameters.WorkArea;
+                if (Height > workArea.Height * 0.95)
+                {
+                    Height = System.Math.Max(480, workArea.Height * 0.93);
+                    Top = workArea.Top + (workArea.Height - Height) / 2;
+                }
+                if (Width > workArea.Width * 0.95)
+                {
+                    Width = System.Math.Max(720, workArea.Width * 0.93);
+                    Left = workArea.Left + (workArea.Width - Width) / 2;
+                }
+            }
+            catch { }
+
             if (ViewModel != null)
             {
                 ViewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -97,6 +113,23 @@ namespace RotinaRemote.Client.Views
 
             double ctrlWidth = RemoteScreenImage.ActualWidth;
             double ctrlHeight = RemoteScreenImage.ActualHeight;
+
+            var vm = ViewModel;
+            if (vm != null && vm.IsZoomEnabled)
+            {
+                if (pos.X < 0 || pos.X > ctrlWidth || pos.Y < 0 || pos.Y > ctrlHeight) return false;
+                normX = System.Math.Clamp(pos.X / ctrlWidth, 0.0, 1.0);
+                normY = System.Math.Clamp(pos.Y / ctrlHeight, 0.0, 1.0);
+                return true;
+            }
+
+            if (RemoteScreenImage.Stretch == System.Windows.Media.Stretch.Fill)
+            {
+                if (pos.X < 0 || pos.X > ctrlWidth || pos.Y < 0 || pos.Y > ctrlHeight) return false;
+                normX = System.Math.Clamp(pos.X / ctrlWidth, 0.0, 1.0);
+                normY = System.Math.Clamp(pos.Y / ctrlHeight, 0.0, 1.0);
+                return true;
+            }
 
             double scale = System.Math.Min(ctrlWidth / imgWidth, ctrlHeight / imgHeight);
             double dispWidth = imgWidth * scale;
@@ -355,6 +388,19 @@ namespace RotinaRemote.Client.Views
                     VirtualKeyCode = vkey
                 };
                 vm.SendInputToRemoteHost(payload);
+            }
+        }
+
+        private void OnChatTextBoxKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var vm = ViewModel;
+                if (vm != null && vm.SendChatMessageCommand.CanExecute(null))
+                {
+                    vm.SendChatMessageCommand.Execute(null);
+                    e.Handled = true;
+                }
             }
         }
     }

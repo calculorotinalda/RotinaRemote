@@ -60,6 +60,9 @@ namespace RotinaRemote.Core.Configuration
         // 16. Modo de Depuração (Gera ficheiros log.txt, log-shell.txt e config.json na pasta da aplicação)
         public bool EnableDebugMode { get; set; } = false;
 
+        // 17. Chave de Licença (Free / Premium)
+        public string LicenseKey { get; set; } = string.Empty;
+
         private static readonly string ConfigFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
 
         public static AppConfig Load()

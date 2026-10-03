@@ -108,5 +108,42 @@ namespace RotinaRemote.UnitTests
             Assert.Equal(768, respDeserialized.EffectiveHeight);
             Assert.Equal("Resolução ajustada com sucesso", respDeserialized.Message);
         }
+
+        [Fact]
+        public void ChatMessagePayload_Serialization_ShouldRoundtrip()
+        {
+            var chat = new ChatMessagePayload
+            {
+                SenderId = "123 456 789",
+                SenderName = "Técnico Suporte",
+                Message = "Olá! Como posso ajudar?",
+                Timestamp = DateTime.UtcNow
+            };
+
+            var bytes = MessageSerializer.SerializeJson(chat);
+            Assert.NotNull(bytes);
+
+            var deserialized = MessageSerializer.DeserializeJson<ChatMessagePayload>(bytes);
+            Assert.NotNull(deserialized);
+            Assert.Equal("123 456 789", deserialized!.SenderId);
+            Assert.Equal("Técnico Suporte", deserialized.SenderName);
+            Assert.Equal("Olá! Como posso ajudar?", deserialized.Message);
+        }
+
+        [Fact]
+        public void ClipboardPayload_Serialization_ShouldRoundtrip()
+        {
+            var clip = new ClipboardPayload
+            {
+                Text = "Texto copiado para teste de clipboard"
+            };
+
+            var bytes = MessageSerializer.SerializeJson(clip);
+            Assert.NotNull(bytes);
+
+            var deserialized = MessageSerializer.DeserializeJson<ClipboardPayload>(bytes);
+            Assert.NotNull(deserialized);
+            Assert.Equal("Texto copiado para teste de clipboard", deserialized!.Text);
+        }
     }
 }

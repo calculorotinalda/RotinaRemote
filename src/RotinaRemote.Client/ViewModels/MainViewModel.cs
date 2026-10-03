@@ -13,6 +13,7 @@ using RotinaRemote.Core.Logging;
 using RotinaRemote.Core.Models;
 using RotinaRemote.Client.Models;
 using RotinaRemote.Client.Services;
+using RotinaRemote.Core.Services;
 using System.Windows.Threading;
 using RotinaRemote.Input;
 using RotinaRemote.Network;
@@ -90,6 +91,23 @@ namespace RotinaRemote.Client.ViewModels
         private IncomingConnectionItem? _activeIncomingConnection;
         private IncomingConnectionItem? _pendingRelayConnectionItem;
         private DispatcherTimer? _incomingDurationTimer;
+
+        // Gestão de Licenciamento e Histórico
+        private readonly LicenseService _licenseService = LicenseService.Instance;
+        private readonly ClipboardSyncManager _clipboardSync = new();
+        private string _licenseKeyInput = string.Empty;
+        private string _licenseActivationFeedback = string.Empty;
+        private ConnectionHistoryItem? _activeOutgoingHistoryItem;
+        private ConnectionHistoryItem? _activeIncomingHistoryItem;
+
+        // Chat e Escalonamento de Visualização
+        private string _chatInputText = string.Empty;
+        private int _unreadChatCount = 0;
+        private bool _isChatOpen = false;
+        private string _selectedViewScale = "Ajustar ao Ecrã";
+        private System.Windows.Media.Stretch _screenStretchMode = System.Windows.Media.Stretch.Uniform;
+        private double _zoomScaleFactor = 1.0;
+        private bool _isZoomEnabled = false;
 
         private string _myDeviceId = string.Empty;
         private string _targetDeviceId = string.Empty;
@@ -375,6 +393,13 @@ namespace RotinaRemote.Client.ViewModels
             get => _enableDebugMode;
             set
             {
+                if (!IsPremium && value)
+                {
+                    MessageBox.Show("O Modo de Depuração e geração de logs é uma funcionalidade exclusiva da versão Premium.\n\nPor favor ative a licença Premium para desbloquear.", "Recurso Premium", MessageBoxButton.OK, MessageBoxImage.Information);
+                    OnPropertyChanged(nameof(EnableDebugMode));
+                    OnPropertyChanged(nameof(DebugModeSelectedIndex));
+                    return;
+                }
                 if (SetProperty(ref _enableDebugMode, value))
                 {
                     AppLogger.IsDebugModeEnabled = value;
@@ -412,6 +437,34 @@ namespace RotinaRemote.Client.ViewModels
 
         public ObservableCollection<ConnectionHistoryItem> History { get; } = new();
         public ObservableCollection<IncomingConnectionItem> IncomingConnections { get; } = new();
+
+        // Licenciamento Free vs Premium
+        public bool IsPremium => _licenseService.IsPremium;
+        public bool IsFree => !_licenseService.IsPremium;
+        public string LicenseBadgeText => IsPremium ? "⭐ PREMIUM" : "GRÁTIS (FREE)";
+        public string LicenseBadgeBackground => IsPremium ? "#10B981" : "#64748B";
+        public string LicenseStatusText => _licenseService.CurrentLicense.StatusText;
+        public string LicensePlanName => _licenseService.CurrentLicense.Plan;
+        public string LicenseLicensedTo => _licenseService.CurrentLicense.LicensedTo;
+        public string LicenseKeyDisplay => string.IsNullOrEmpty(_licenseService.CurrentLicense.LicenseKey)
+            ? "Nenhuma (Versão Gratuita)"
+            : _licenseService.CurrentLicense.LicenseKey;
+
+        public string LicenseKeyInput
+        {
+            get => _licenseKeyInput;
+            set => SetProperty(ref _licenseKeyInput, value);
+        }
+
+        public string LicenseActivationFeedback
+        {
+            get => _licenseActivationFeedback;
+            set => SetProperty(ref _licenseActivationFeedback, value);
+        }
+
+        public string SessionsTabHeader => IsPremium ? "Sessões" : "🔒 Sessões";
+        public string HistoryTabHeader => IsPremium ? "Histórico" : "🔒 Histórico";
+        public string DiagnosticTabHeader => IsPremium ? "Diagnóstico" : "🔒 Diagnóstico";
 
         public IncomingConnectionItem? ActiveIncomingConnection
         {
@@ -453,6 +506,14 @@ namespace RotinaRemote.Client.ViewModels
         public ICommand ClearIncomingHistoryCommand { get; }
         public ICommand RefreshConnectionsCommand { get; }
 
+        // Comandos de Licenciamento e Histórico
+        public ICommand ActivateLicenseCommand { get; }
+        public ICommand DeactivateLicenseCommand { get; }
+        public ICommand ClearHistoryCommand { get; }
+        public ICommand ConnectFromHistoryCommand { get; }
+        public ICommand CopyHistoryIdCommand { get; }
+        public ICommand DeleteHistoryItemCommand { get; }
+
         public ICommand SendRemoteMinimizeCommand { get; }
         public ICommand SendRemoteMaximizeCommand { get; }
         public ICommand SendRemoteCloseCommand { get; }
@@ -468,11 +529,132 @@ namespace RotinaRemote.Client.ViewModels
         public ICommand UninstallServiceCommand { get; }
         public ICommand RefreshServiceStatusCommand { get; }
 
+        // Comandos de Chat
+        public ICommand SendChatMessageCommand { get; }
+        public ICommand ToggleChatCommand { get; }
+
+        // Propriedades de Chat e Visualização
+        public ObservableCollection<ChatMessageItem> ChatMessages { get; } = new();
+
+        public string ChatInputText
+        {
+            get => _chatInputText;
+            set => SetProperty(ref _chatInputText, value);
+        }
+
+        public int UnreadChatCount
+        {
+            get => _unreadChatCount;
+            set
+            {
+                if (SetProperty(ref _unreadChatCount, value))
+                {
+                    OnPropertyChanged(nameof(ChatButtonText));
+                    OnPropertyChanged(nameof(ChatTabHeader));
+                }
+            }
+        }
+
+        public bool IsChatOpen
+        {
+            get => _isChatOpen;
+            set
+            {
+                if (SetProperty(ref _isChatOpen, value))
+                {
+                    if (value)
+                    {
+                        UnreadChatCount = 0;
+                    }
+                }
+            }
+        }
+
+        public string ChatButtonText => UnreadChatCount > 0 ? $"💬 Chat ({UnreadChatCount})" : "💬 Chat";
+        public string ChatTabHeader => UnreadChatCount > 0 ? $"Chat ({UnreadChatCount}) 🔴" : "Chat";
+
+        public string SelectedViewScale
+        {
+            get => _selectedViewScale;
+            set
+            {
+                if (SetProperty(ref _selectedViewScale, value))
+                {
+                    UpdateViewScale(value);
+                }
+            }
+        }
+
+        public System.Windows.Media.Stretch ScreenStretchMode
+        {
+            get => _screenStretchMode;
+            set => SetProperty(ref _screenStretchMode, value);
+        }
+
+        public double ZoomScaleFactor
+        {
+            get => _zoomScaleFactor;
+            set => SetProperty(ref _zoomScaleFactor, value);
+        }
+
+        public bool IsZoomEnabled
+        {
+            get => _isZoomEnabled;
+            set
+            {
+                if (SetProperty(ref _isZoomEnabled, value))
+                {
+                    OnPropertyChanged(nameof(ScrollBarVisibility));
+                }
+            }
+        }
+
+        public System.Windows.Controls.ScrollBarVisibility ScrollBarVisibility =>
+            IsZoomEnabled ? System.Windows.Controls.ScrollBarVisibility.Auto : System.Windows.Controls.ScrollBarVisibility.Disabled;
+
+        private void UpdateViewScale(string scale)
+        {
+            switch (scale)
+            {
+                case "100% (Original)":
+                    ScreenStretchMode = System.Windows.Media.Stretch.None;
+                    ZoomScaleFactor = 1.0;
+                    IsZoomEnabled = true;
+                    break;
+                case "125%":
+                    ScreenStretchMode = System.Windows.Media.Stretch.None;
+                    ZoomScaleFactor = 1.25;
+                    IsZoomEnabled = true;
+                    break;
+                case "150%":
+                    ScreenStretchMode = System.Windows.Media.Stretch.None;
+                    ZoomScaleFactor = 1.50;
+                    IsZoomEnabled = true;
+                    break;
+                case "Preencher (Fill)":
+                    ScreenStretchMode = System.Windows.Media.Stretch.Fill;
+                    ZoomScaleFactor = 1.0;
+                    IsZoomEnabled = false;
+                    break;
+                case "Ajustar ao Ecrã":
+                default:
+                    ScreenStretchMode = System.Windows.Media.Stretch.Uniform;
+                    ZoomScaleFactor = 1.0;
+                    IsZoomEnabled = false;
+                    break;
+            }
+            AppLogger.LogInfo("RemoteSession", $"Visualização ajustada para: {scale} (Stretch={ScreenStretchMode}, Zoom={ZoomScaleFactor})");
+        }
+
         public MainViewModel()
         {
             _config = AppConfig.Load();
             _identity = DeviceIdentity.LoadOrCreate();
             MyDeviceId = _identity.FormattedId;
+
+            // Inicialização do Licenciamento Free vs Premium
+            _licenseService.Initialize(_config.LicenseKey);
+            _licenseService.LicenseChanged += OnLicenseChanged;
 
             // Carregar valores de configurações salvas
             _theme = _config.Theme;
@@ -490,9 +672,31 @@ namespace RotinaRemote.Client.ViewModels
             _lanDiscoveryPort = _config.LanDiscoveryPort;
             _keepAliveIntervalMs = _config.KeepAliveIntervalMs;
             _signalingServerUrl = _config.SignalingServerUrl;
-            _enableDebugMode = _config.EnableDebugMode;
-            AppLogger.IsDebugModeEnabled = _enableDebugMode;
-            ShellAuditor.IsDebugModeEnabled = _enableDebugMode;
+
+            if (!IsPremium)
+            {
+                _enableDebugMode = false;
+                _config.EnableDebugMode = false;
+                AppLogger.IsDebugModeEnabled = false;
+                ShellAuditor.IsDebugModeEnabled = false;
+            }
+            else
+            {
+                _enableDebugMode = _config.EnableDebugMode;
+                AppLogger.IsDebugModeEnabled = _enableDebugMode;
+                ShellAuditor.IsDebugModeEnabled = _enableDebugMode;
+            }
+
+            // Carregar Histórico persistido
+            try
+            {
+                var loadedHistory = HistoryManager.LoadHistory();
+                foreach (var item in loadedHistory)
+                {
+                    History.Add(item);
+                }
+            }
+            catch { }
 
             _screenCapturer = new ScreenCapturer();
             _listener = new P2PTransportListener();
@@ -517,11 +721,21 @@ namespace RotinaRemote.Client.ViewModels
             ClearIncomingHistoryCommand = new RelayCommand(ClearIncomingHistory);
             RefreshConnectionsCommand = new RelayCommand(RefreshConnectionsState);
 
+            ActivateLicenseCommand = new RelayCommand(ActivateLicenseAction);
+            DeactivateLicenseCommand = new RelayCommand(DeactivateLicenseAction);
+            ClearHistoryCommand = new RelayCommand(ClearHistory);
+            ConnectFromHistoryCommand = new RelayCommand<ConnectionHistoryItem>(ConnectFromHistory);
+            CopyHistoryIdCommand = new RelayCommand<ConnectionHistoryItem>(CopyHistoryId);
+            DeleteHistoryItemCommand = new RelayCommand<ConnectionHistoryItem>(DeleteHistoryItem);
+
             SendRemoteMinimizeCommand = new RelayCommand(SendRemoteMinimize);
             SendRemoteMaximizeCommand = new RelayCommand(SendRemoteMaximize);
             SendRemoteCloseCommand = new RelayCommand(SendRemoteClose);
             MinimizeLocalWindowCommand = new RelayCommand(MinimizeLocalWindow);
             MaximizeLocalWindowCommand = new RelayCommand(MaximizeLocalWindow);
+
+            SendChatMessageCommand = new RelayCommand(SendChatMessage);
+            ToggleChatCommand = new RelayCommand(ToggleChat);
 
             SaveSettingsCommand = new RelayCommand(SaveSettings);
             ToggleThemeCommand = new RelayCommand(ToggleTheme);
@@ -596,11 +810,96 @@ namespace RotinaRemote.Client.ViewModels
             OnPropertyChanged(nameof(TotalIncomingConnectionsCount));
         }
 
+        private void OnLicenseChanged()
+        {
+            OnPropertyChanged(nameof(IsPremium));
+            OnPropertyChanged(nameof(IsFree));
+            OnPropertyChanged(nameof(LicenseBadgeText));
+            OnPropertyChanged(nameof(LicenseBadgeBackground));
+            OnPropertyChanged(nameof(LicenseStatusText));
+            OnPropertyChanged(nameof(LicensePlanName));
+            OnPropertyChanged(nameof(LicenseLicensedTo));
+            OnPropertyChanged(nameof(LicenseKeyDisplay));
+            OnPropertyChanged(nameof(SessionsTabHeader));
+            OnPropertyChanged(nameof(HistoryTabHeader));
+            OnPropertyChanged(nameof(DiagnosticTabHeader));
+
+            if (!IsPremium)
+            {
+                EnableDebugMode = false;
+                DebugModeSelectedIndex = 0;
+            }
+        }
+
+        private void ActivateLicenseAction()
+        {
+            if (string.IsNullOrWhiteSpace(LicenseKeyInput))
+            {
+                LicenseActivationFeedback = "⚠️ Introduza uma chave de licença.";
+                MessageBox.Show("Por favor introduza uma Chave de Licença válida.\n\nChave de Teste Premium Oficial:\n" + LicenseService.MasterTestKey, "Ativação de Licença", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = _licenseService.ActivateLicense(LicenseKeyInput, _config);
+            if (result.Success)
+            {
+                LicenseActivationFeedback = "✅ " + result.Message;
+                LicenseKeyInput = string.Empty;
+                MessageBox.Show(result.Message + "\n\nO separador Sessões, Histórico, Diagnóstico e a opção de depuração nas configurações avançadas estão agora desbloqueados.", "RotinaRemote Premium", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                LicenseActivationFeedback = "❌ " + result.Message;
+                MessageBox.Show(result.Message + "\n\nUtilize a Chave de Teste Premium:\n" + LicenseService.MasterTestKey, "Chave Inválida", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void DeactivateLicenseAction()
+        {
+            _licenseService.DeactivateLicense(_config);
+            LicenseActivationFeedback = "ℹ️ Versão Free ativa. Recursos avançados bloqueados.";
+            MessageBox.Show("A licença Premium foi removida. A aplicação retornou à Versão Free (Gratuita).", "Versão Free", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        public void ClearHistory()
+        {
+            History.Clear();
+            HistoryManager.ClearHistory();
+        }
+
+        private void DeleteHistoryItem(ConnectionHistoryItem? item)
+        {
+            if (item != null)
+            {
+                History.Remove(item);
+                HistoryManager.SaveHistory(History);
+            }
+        }
+
+        private void ConnectFromHistory(ConnectionHistoryItem? item)
+        {
+            if (item != null && !string.IsNullOrWhiteSpace(item.RemoteId))
+            {
+                TargetDeviceId = item.RemoteId;
+                SelectedTabIndex = 0;
+            }
+        }
+
+        private void CopyHistoryId(ConnectionHistoryItem? item)
+        {
+            if (item != null && !string.IsNullOrWhiteSpace(item.RemoteId))
+            {
+                Clipboard.SetText(item.RemoteId);
+                MessageBox.Show($"ID {item.RemoteId} copiado para a Área de Transferência.", "ID Copiado", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         public void DisconnectIncomingSession(IncomingConnectionItem? item = null)
         {
             try
             {
                 AppLogger.LogInfo("RemoteSession", "[HOST ACTION] Desconexão manual acionada pelo utilizador no separador Ligações.");
+                _clipboardSync.Stop();
                 _sessionMonitoringCts?.Cancel();
                 if (_incomingSession != null)
                 {
@@ -632,6 +931,14 @@ namespace RotinaRemote.Client.ViewModels
                     target.Status = "Terminada pelo Anfitrião";
                 }
 
+                if (_activeIncomingHistoryItem != null)
+                {
+                    _activeIncomingHistoryItem.Status = "Terminada pelo Anfitrião";
+                    if (target != null) _activeIncomingHistoryItem.Duration = DateTime.Now - target.StartTime;
+                    HistoryManager.SaveHistory(History);
+                    _activeIncomingHistoryItem = null;
+                }
+
                 ActiveIncomingConnection = null;
                 ConnectionStatus = "Pronto";
                 OnPropertyChanged(nameof(HasActiveIncomingConnection));
@@ -650,6 +957,7 @@ namespace RotinaRemote.Client.ViewModels
             {
                 AppLogger.LogWarning("RemoteSession", "[KILL SESSION] Ordem de KILL imediato acionada pelo utilizador. A forçar encerramento total da sessão!");
 
+                _clipboardSync.Stop();
                 _sessionMonitoringCts?.Cancel();
                 _streamingCts?.Cancel();
 
@@ -683,6 +991,14 @@ namespace RotinaRemote.Client.ViewModels
                     target.IsActive = false;
                     target.EndTime = DateTime.Now;
                     target.Status = "💀 Morta Forçadamente (KILL)";
+                }
+
+                if (_activeIncomingHistoryItem != null)
+                {
+                    _activeIncomingHistoryItem.Status = "💀 Terminada (KILL)";
+                    if (target != null) _activeIncomingHistoryItem.Duration = DateTime.Now - target.StartTime;
+                    HistoryManager.SaveHistory(History);
+                    _activeIncomingHistoryItem = null;
                 }
 
                 if (ActiveIncomingConnection != null)
@@ -776,6 +1092,49 @@ namespace RotinaRemote.Client.ViewModels
             });
         }
 
+        private void SendChatMessage()
+        {
+            if (string.IsNullOrWhiteSpace(ChatInputText)) return;
+            string msg = ChatInputText.Trim();
+            ChatInputText = string.Empty;
+
+            var chatItem = new ChatMessageItem
+            {
+                SenderId = _identity.FormattedId,
+                SenderName = "Eu",
+                Message = msg,
+                Timestamp = DateTime.Now,
+                IsOutgoing = true
+            };
+            System.Windows.Application.Current.Dispatcher.Invoke(() => ChatMessages.Add(chatItem));
+
+            var payload = new ChatMessagePayload
+            {
+                SenderId = _identity.FormattedId,
+                SenderName = Environment.MachineName,
+                Message = msg,
+                Timestamp = DateTime.UtcNow
+            };
+            var bytes = MessageSerializer.SerializeJson(payload);
+            var packet = new PacketFrame(ChannelType.Chat, 0, bytes);
+
+            if (_activeSession != null && _activeSession.IsConnected)
+            {
+                _ = _activeSession.SendFrameAsync(packet);
+                AppLogger.LogInfo("Chat", $"[CHAT CLIENT] Mensagem enviada para anfitrião: {msg}");
+            }
+            else if (_incomingSession != null && _incomingSession.IsConnected)
+            {
+                _ = _incomingSession.SendFrameAsync(packet);
+                AppLogger.LogInfo("Chat", $"[CHAT HOST] Mensagem enviada para cliente: {msg}");
+            }
+        }
+
+        private void ToggleChat()
+        {
+            IsChatOpen = !IsChatOpen;
+        }
+
         private void InstallService()
         {
             var (success, msg) = RotinaRemote.Client.Services.WindowsServiceManager.InstallService();
@@ -837,7 +1196,20 @@ namespace RotinaRemote.Client.ViewModels
                 _config.LanDiscoveryPort = LanDiscoveryPort;
                 _config.KeepAliveIntervalMs = KeepAliveIntervalMs;
                 _config.SignalingServerUrl = SignalingServerUrl;
-                _config.EnableDebugMode = EnableDebugMode;
+
+                if (!IsPremium)
+                {
+                    _config.EnableDebugMode = false;
+                    _enableDebugMode = false;
+                    AppLogger.IsDebugModeEnabled = false;
+                    ShellAuditor.IsDebugModeEnabled = false;
+                }
+                else
+                {
+                    _config.EnableDebugMode = EnableDebugMode;
+                }
+
+                _config.LicenseKey = _licenseService.CurrentLicense.LicenseKey;
 
                 _config.Save();
                 RotinaRemote.Client.Services.ThemeManager.ApplyTheme(Theme);
@@ -1020,12 +1392,42 @@ namespace RotinaRemote.Client.ViewModels
                                 ? $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}"
                                 : "Automática / Padrão";
                             ActiveIncomingConnection = currentConn;
+
+                            var historyEntry = new ConnectionHistoryItem
+                            {
+                                RemoteId = currentConn.RemoteDeviceId,
+                                RemoteName = string.IsNullOrWhiteSpace(currentConn.Location) ? "Cliente Remoto" : currentConn.Location,
+                                Direction = "Entrada",
+                                RemoteIp = currentConn.RemoteIp,
+                                Location = currentConn.Location,
+                                ConnectionTime = DateTime.Now,
+                                Duration = TimeSpan.Zero,
+                                TransportName = currentConn.TransportType,
+                                Status = "Em curso..."
+                            };
+                            _activeIncomingHistoryItem = historyEntry;
+                            History.Insert(0, historyEntry);
+                            HistoryManager.SaveHistory(History);
+
                             System.Windows.Application.Current.Dispatcher.Invoke(RefreshConnectionsState);
                         }
 
                         session.FrameReceived += OnInputFrameReceivedFromClient;
+                        if (EnableClipboardSync)
+                        {
+                            _clipboardSync.Start(async text =>
+                            {
+                                if (_incomingSession != null && _incomingSession.IsConnected && EnableClipboardSync)
+                                {
+                                    var clipPayload = new ClipboardPayload { Text = text };
+                                    var bytes = MessageSerializer.SerializeJson(clipPayload);
+                                    await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Clipboard, 0, bytes));
+                                }
+                            });
+                        }
                         session.Disconnected += () =>
                         {
+                            _clipboardSync.Stop();
                             _sessionMonitoringCts?.Cancel();
                             DisplayResolutionManager.RestoreOriginalResolution();
                             _screenCapturer.ClearTargetResolution();
@@ -1041,6 +1443,13 @@ namespace RotinaRemote.Client.ViewModels
                                 currentConn.IsActive = false;
                                 currentConn.EndTime = DateTime.Now;
                                 currentConn.Status = "Terminada";
+                            }
+                            if (_activeIncomingHistoryItem != null && currentConn != null)
+                            {
+                                _activeIncomingHistoryItem.Duration = DateTime.Now - currentConn.StartTime;
+                                _activeIncomingHistoryItem.Status = "Concluída";
+                                HistoryManager.SaveHistory(History);
+                                _activeIncomingHistoryItem = null;
                             }
                             if (ActiveIncomingConnection == currentConn)
                             {
@@ -1248,12 +1657,42 @@ namespace RotinaRemote.Client.ViewModels
                         connItem.ClientResolution = $"{_incomingClientScreenWidth}x{_incomingClientScreenHeight}";
                     }
                     ActiveIncomingConnection = connItem;
+
+                    var historyEntry = new ConnectionHistoryItem
+                    {
+                        RemoteId = connItem.RemoteDeviceId,
+                        RemoteName = string.IsNullOrWhiteSpace(connItem.Location) ? "Cliente Remoto" : connItem.Location,
+                        Direction = "Entrada",
+                        RemoteIp = connItem.RemoteIp,
+                        Location = connItem.Location,
+                        ConnectionTime = DateTime.Now,
+                        Duration = TimeSpan.Zero,
+                        TransportName = connItem.TransportType,
+                        Status = "Em curso..."
+                    };
+                    _activeIncomingHistoryItem = historyEntry;
+                    History.Insert(0, historyEntry);
+                    HistoryManager.SaveHistory(History);
+
                     RefreshConnectionsState();
 
                     _incomingSession = session;
                     session.FrameReceived += OnInputFrameReceivedFromClient;
+                    if (EnableClipboardSync)
+                    {
+                        _clipboardSync.Start(async text =>
+                        {
+                            if (_incomingSession != null && _incomingSession.IsConnected && EnableClipboardSync)
+                            {
+                                var clipPayload = new ClipboardPayload { Text = text };
+                                var bytes = MessageSerializer.SerializeJson(clipPayload);
+                                await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Clipboard, 0, bytes));
+                            }
+                        });
+                    }
                     session.Disconnected += () =>
                     {
+                        _clipboardSync.Stop();
                         _sessionMonitoringCts?.Cancel();
                         DisplayResolutionManager.RestoreOriginalResolution();
                         _screenCapturer.ClearTargetResolution();
@@ -1272,6 +1711,13 @@ namespace RotinaRemote.Client.ViewModels
                         connItem.IsActive = false;
                         connItem.EndTime = DateTime.Now;
                         connItem.Status = "Terminada";
+                        if (_activeIncomingHistoryItem != null)
+                        {
+                            _activeIncomingHistoryItem.Duration = DateTime.Now - connItem.StartTime;
+                            _activeIncomingHistoryItem.Status = "Concluída";
+                            HistoryManager.SaveHistory(History);
+                            _activeIncomingHistoryItem = null;
+                        }
                         if (ActiveIncomingConnection == connItem)
                         {
                             ActiveIncomingConnection = null;
@@ -1313,6 +1759,62 @@ namespace RotinaRemote.Client.ViewModels
 
         private void OnInputFrameReceivedFromClient(PacketFrame frame)
         {
+            if (frame.Channel == ChannelType.Clipboard && frame.Payload.Length > 0)
+            {
+                if (EnableClipboardSync)
+                {
+                    string text = string.Empty;
+                    try
+                    {
+                        var clipPayload = MessageSerializer.DeserializeJson<ClipboardPayload>(frame.Payload);
+                        text = clipPayload?.Text ?? string.Empty;
+                    }
+                    catch { }
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        text = System.Text.Encoding.UTF8.GetString(frame.Payload);
+                    }
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        _clipboardSync.ReceiveRemoteClipboard(text);
+                    }
+                }
+                return;
+            }
+
+            if (frame.Channel == ChannelType.Chat && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var chatPayload = MessageSerializer.DeserializeJson<ChatMessagePayload>(frame.Payload);
+                    if (chatPayload != null && !string.IsNullOrWhiteSpace(chatPayload.Message))
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            ChatMessages.Add(new ChatMessageItem
+                            {
+                                SenderId = chatPayload.SenderId,
+                                SenderName = !string.IsNullOrEmpty(chatPayload.SenderName) ? chatPayload.SenderName : $"Cliente ({chatPayload.SenderId})",
+                                Message = chatPayload.Message,
+                                Timestamp = chatPayload.Timestamp.ToLocalTime(),
+                                IsOutgoing = false
+                            });
+
+                            if (!IsChatOpen)
+                            {
+                                UnreadChatCount++;
+                            }
+
+                            try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("Chat", "Erro ao processar mensagem de chat do cliente", ex);
+                }
+                return;
+            }
             if (frame.Channel == ChannelType.Control && frame.Payload.Length > 0)
             {
                 try
@@ -1840,6 +2342,19 @@ namespace RotinaRemote.Client.ViewModels
                     _activeSession.FrameReceived += OnFrameReceivedFromHost;
                     _activeSession.Disconnected += OnSessionDisconnected;
 
+                    if (EnableClipboardSync)
+                    {
+                        _clipboardSync.Start(async text =>
+                        {
+                            if (_activeSession != null && _activeSession.IsConnected && EnableClipboardSync)
+                            {
+                                var clipPayload = new ClipboardPayload { Text = text };
+                                var bytes = MessageSerializer.SerializeJson(clipPayload);
+                                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.Clipboard, 0, bytes));
+                            }
+                        });
+                    }
+
                     IsConnected = true;
                     TransportType = usedTransportName;
                     ConnectionStatus = "Ligado a " + targetHost + " (" + usedTransportName + ")";
@@ -1858,15 +2373,21 @@ namespace RotinaRemote.Client.ViewModels
                     _sessionMonitoringCts = new CancellationTokenSource();
                     ShellAuditor.StartSessionMonitoring(targetHost, _sessionMonitoringCts.Token);
 
-                    History.Insert(0, new ConnectionHistoryItem
+                    _activeOutgoingHistoryItem = new ConnectionHistoryItem
                     {
                         RemoteId = targetHost,
-                        RemoteName = "PC-REMOTO-" + targetHost,
+                        RemoteName = "PC Remoto (" + targetHost + ")",
+                        Direction = "Saída",
+                        RemoteIp = targetHost,
+                        Location = "Remoto",
                         ConnectionTime = DateTime.Now,
-                        Duration = TimeSpan.FromMinutes(1),
+                        Duration = TimeSpan.Zero,
                         Transport = usedTransportType,
-                        Status = "Ativa"
-                    });
+                        TransportName = usedTransportName,
+                        Status = "Em curso..."
+                    };
+                    History.Insert(0, _activeOutgoingHistoryItem);
+                    HistoryManager.SaveHistory(History);
                 }
                 catch (Exception ex)
                 {
@@ -2010,6 +2531,61 @@ namespace RotinaRemote.Client.ViewModels
                     RemoteScreenSource = bitmap;
                 });
             }
+
+            if (frame.Channel == ChannelType.Clipboard && frame.Payload.Length > 0)
+            {
+                if (EnableClipboardSync)
+                {
+                    string text = string.Empty;
+                    try
+                    {
+                        var clipPayload = MessageSerializer.DeserializeJson<ClipboardPayload>(frame.Payload);
+                        text = clipPayload?.Text ?? string.Empty;
+                    }
+                    catch { }
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        text = System.Text.Encoding.UTF8.GetString(frame.Payload);
+                    }
+                    if (!string.IsNullOrEmpty(text))
+                    {
+                        _clipboardSync.ReceiveRemoteClipboard(text);
+                    }
+                }
+            }
+
+            if (frame.Channel == ChannelType.Chat && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var chatPayload = MessageSerializer.DeserializeJson<ChatMessagePayload>(frame.Payload);
+                    if (chatPayload != null && !string.IsNullOrWhiteSpace(chatPayload.Message))
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            ChatMessages.Add(new ChatMessageItem
+                            {
+                                SenderId = chatPayload.SenderId,
+                                SenderName = !string.IsNullOrEmpty(chatPayload.SenderName) ? chatPayload.SenderName : $"Anfitrião ({chatPayload.SenderId})",
+                                Message = chatPayload.Message,
+                                Timestamp = chatPayload.Timestamp.ToLocalTime(),
+                                IsOutgoing = false
+                            });
+
+                            if (!IsChatOpen)
+                            {
+                                UnreadChatCount++;
+                            }
+
+                            try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("Chat", "Erro ao processar mensagem de chat do anfitrião", ex);
+                }
+            }
         }
 
         private void OnSessionDisconnected()
@@ -2034,6 +2610,7 @@ namespace RotinaRemote.Client.ViewModels
 
         private void Disconnect()
         {
+            _clipboardSync.Stop();
             _sessionMonitoringCts?.Cancel();
             DisplayResolutionManager.RestoreOriginalResolution();
             _screenCapturer.ClearTargetResolution();
@@ -2063,6 +2640,22 @@ namespace RotinaRemote.Client.ViewModels
                 ActiveIncomingConnection = null;
                 RefreshConnectionsState();
             }
+
+            if (_activeOutgoingHistoryItem != null)
+            {
+                _activeOutgoingHistoryItem.Duration = DateTime.UtcNow - _sessionStartTime;
+                _activeOutgoingHistoryItem.Status = "Concluída";
+                HistoryManager.SaveHistory(History);
+                _activeOutgoingHistoryItem = null;
+            }
+
+            if (_activeIncomingHistoryItem != null)
+            {
+                _activeIncomingHistoryItem.Status = "Concluída";
+                HistoryManager.SaveHistory(History);
+                _activeIncomingHistoryItem = null;
+            }
+
             IsConnected = false;
             RemoteScreenSource = null;
             ConnectionStatus = "Pronto";

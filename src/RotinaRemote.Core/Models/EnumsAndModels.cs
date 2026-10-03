@@ -51,11 +51,28 @@ namespace RotinaRemote.Core.Models
 
     public class ConnectionHistoryItem
     {
+        public string Id { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 8);
         public string RemoteId { get; set; } = string.Empty;
         public string RemoteName { get; set; } = string.Empty;
-        public DateTime ConnectionTime { get; set; }
-        public TimeSpan Duration { get; set; }
-        public TransportType Transport { get; set; }
+        public string Direction { get; set; } = "Saída"; // "Saída" (Cliente) ou "Entrada" (Host)
+        public string RemoteIp { get; set; } = string.Empty;
+        public string Location { get; set; } = string.Empty;
+        public DateTime ConnectionTime { get; set; } = DateTime.Now;
+        public TimeSpan Duration { get; set; } = TimeSpan.Zero;
+        public string DurationFormatted
+        {
+            get => Duration.TotalHours >= 1
+                ? $"{(int)Duration.TotalHours:D2}:{Duration.Minutes:D2}:{Duration.Seconds:D2}"
+                : $"{Duration.Minutes:D2}:{Duration.Seconds:D2}";
+            set { }
+        }
+        public string ConnectionTimeFormatted
+        {
+            get => ConnectionTime.ToString("dd/MM/yyyy HH:mm");
+            set { }
+        }
+        public TransportType Transport { get; set; } = TransportType.DirectP2P;
+        public string TransportName { get; set; } = "Direto (P2P)";
         public string Status { get; set; } = "Concluída";
     }
 

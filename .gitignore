@@ -28,3 +28,7 @@ tests/**/log.txt
 .vs/
 *.user
 *.suo
+
+# Local prompt specs & notes
+prompt.md
+

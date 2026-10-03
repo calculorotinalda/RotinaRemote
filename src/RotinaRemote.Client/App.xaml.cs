@@ -12,8 +12,25 @@ namespace RotinaRemote.Client
 {
     public partial class App : Application
     {
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
+
+        [System.Runtime.InteropServices.DllImport("shcore.dll")]
+        private static extern int SetProcessDpiAwareness(int awareness);
+
+        private static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = (IntPtr)(-4);
+
         protected override void OnStartup(System.Windows.StartupEventArgs e)
         {
+            try
+            {
+                SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            }
+            catch
+            {
+                try { SetProcessDpiAwareness(2); } catch { }
+            }
+
             try
             {
                 System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);

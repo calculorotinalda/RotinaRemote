@@ -104,9 +104,15 @@ namespace RotinaRemote.Network
         {
             if (!IsConnected) return;
 
+            bool acquired = false;
             try
             {
-                await _sendLock.WaitAsync(ct);
+                acquired = await _sendLock.WaitAsync(3000, ct);
+                if (!acquired)
+                {
+                    AppLogger.LogWarning("ConnectionSession", "Timeout ao aguardar lock de envio de frame (canal ocupado).");
+                    return;
+                }
             }
             catch (OperationCanceledException)
             {
@@ -127,7 +133,10 @@ namespace RotinaRemote.Network
             }
             finally
             {
-                try { _sendLock.Release(); } catch { }
+                if (acquired)
+                {
+                    try { _sendLock.Release(); } catch { }
+                }
             }
         }
 
@@ -174,7 +183,15 @@ namespace RotinaRemote.Network
 
                     if (PacketFrame.TryDeserialize(totalFrame, out var frame) && frame != null)
                     {
-                        FrameReceived?.Invoke(frame);
+                        var handler = FrameReceived;
+                        if (handler != null)
+                        {
+                            ThreadPool.QueueUserWorkItem(_ =>
+                            {
+                                try { handler(frame); }
+                                catch (Exception ex) { AppLogger.LogError("ConnectionSession", "Erro no processamento do frame recebido", ex); }
+                            });
+                        }
                     }
                 }
             }

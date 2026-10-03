@@ -93,6 +93,21 @@ namespace RotinaRemote.Protocol
         public int LatencyMs { get; set; }
     }
 
+    public class ChatMessagePayload
+    {
+        public string MessageId { get; set; } = Guid.NewGuid().ToString("N");
+        public string SenderId { get; set; } = string.Empty;
+        public string SenderName { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    }
+
+    public class ClipboardPayload
+    {
+        public string Text { get; set; } = string.Empty;
+        public long Timestamp { get; set; } = DateTime.UtcNow.Ticks;
+    }
+
     public static class MessageSerializer
     {
         public static byte[] SerializeJson<T>(T payload)

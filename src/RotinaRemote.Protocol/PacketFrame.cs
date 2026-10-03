@@ -9,7 +9,8 @@ namespace RotinaRemote.Protocol
         Video = 0x01,
         Input = 0x02,
         File = 0x03,
-        Clipboard = 0x04
+        Clipboard = 0x04,
+        Chat = 0x05
     }
 
     public class PacketFrame
