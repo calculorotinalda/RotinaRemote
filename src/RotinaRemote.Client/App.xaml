@@ -12,6 +12,7 @@
         <SolidColorBrush x:Key="AccentBlue" Color="#3B82F6" />
         <SolidColorBrush x:Key="AccentGreen" Color="#10B981" />
         <SolidColorBrush x:Key="AccentRed" Color="#EF4444" />
+        <SolidColorBrush x:Key="AccentOrange" Color="#F97316" />
         <SolidColorBrush x:Key="TextPrimary" Color="#F8FAFC" />
         <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8" />
 

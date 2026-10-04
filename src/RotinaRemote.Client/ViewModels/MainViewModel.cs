@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -20,6 +23,7 @@ using RotinaRemote.Network;
 using RotinaRemote.Protocol;
 using RotinaRemote.Screen;
 using RotinaRemote.Security;
+using RotinaRemote.FileTransfer;
 
 using Clipboard = System.Windows.Clipboard;
 using MessageBox = System.Windows.MessageBox;
@@ -95,6 +99,7 @@ namespace RotinaRemote.Client.ViewModels
         // Gestão de Licenciamento e Histórico
         private readonly LicenseService _licenseService = LicenseService.Instance;
         private readonly ClipboardSyncManager _clipboardSync = new();
+        private readonly FileTransferEngine _fileTransferEngine = new();
         private string _licenseKeyInput = string.Empty;
         private string _licenseActivationFeedback = string.Empty;
         private ConnectionHistoryItem? _activeOutgoingHistoryItem;
@@ -517,6 +522,9 @@ namespace RotinaRemote.Client.ViewModels
         public ICommand SendRemoteMinimizeCommand { get; }
         public ICommand SendRemoteMaximizeCommand { get; }
         public ICommand SendRemoteCloseCommand { get; }
+        public ICommand SendRemoteMinimizeHostRotinaCommand { get; }
+        public ICommand SendRemoteMaximizeHostRotinaCommand { get; }
+        public ICommand OpenSendFileDialogCommand { get; }
         public ICommand MinimizeLocalWindowCommand { get; }
         public ICommand MaximizeLocalWindowCommand { get; }
 
@@ -532,6 +540,101 @@ namespace RotinaRemote.Client.ViewModels
         // Comandos de Chat
         public ICommand SendChatMessageCommand { get; }
         public ICommand ToggleChatCommand { get; }
+
+        // Comandos de Gestor de Processos Remotos
+        public ICommand RefreshRemoteProcessesCommand { get; }
+        public ICommand KillRemoteProcessCommand { get; }
+        public ICommand OpenProcessTabCommand { get; }
+        public ICommand ReturnToScreenTabCommand { get; }
+        public ICommand ClearProcessFilterCommand { get; }
+
+        // Propriedades do Gestor de Processos Remotos
+        public ObservableCollection<RemoteProcessItem> RemoteProcesses { get; } = new();
+        public ObservableCollection<RemoteProcessItem> FilteredRemoteProcesses { get; } = new();
+
+        private string _processFilter = string.Empty;
+        public string ProcessFilter
+        {
+            get => _processFilter;
+            set
+            {
+                if (SetProperty(ref _processFilter, value))
+                {
+                    FilterProcesses();
+                }
+            }
+        }
+
+        private RemoteProcessItem? _selectedRemoteProcess;
+        public RemoteProcessItem? SelectedRemoteProcess
+        {
+            get => _selectedRemoteProcess;
+            set => SetProperty(ref _selectedRemoteProcess, value);
+        }
+
+        private int _totalRemoteProcessesCount;
+        public int TotalRemoteProcessesCount
+        {
+            get => _totalRemoteProcessesCount;
+            set => SetProperty(ref _totalRemoteProcessesCount, value);
+        }
+
+        private string _totalRemoteMemoryFormatted = "0 MB";
+        public string TotalRemoteMemoryFormatted
+        {
+            get => _totalRemoteMemoryFormatted;
+            set => SetProperty(ref _totalRemoteMemoryFormatted, value);
+        }
+
+        private bool _isLoadingProcesses;
+        public bool IsLoadingProcesses
+        {
+            get => _isLoadingProcesses;
+            set => SetProperty(ref _isLoadingProcesses, value);
+        }
+
+        private string _processManagerStatusText = "Pronto. Clique em 'Atualizar' para listar os processos remotos em segundo plano.";
+        public string ProcessManagerStatusText
+        {
+            get => _processManagerStatusText;
+            set => SetProperty(ref _processManagerStatusText, value);
+        }
+
+        private int _remoteSessionSubTabIndex = 0;
+        public int RemoteSessionSubTabIndex
+        {
+            get => _remoteSessionSubTabIndex;
+            set
+            {
+                if (SetProperty(ref _remoteSessionSubTabIndex, value))
+                {
+                    if (value == 1 && _activeSession != null && _activeSession.IsConnected)
+                    {
+                        RefreshRemoteProcesses();
+                    }
+                }
+            }
+        }
+
+        // Modo de Privacidade Remoto
+        private bool _isRemotePrivacyModeActive = false;
+        public bool IsRemotePrivacyModeActive
+        {
+            get => _isRemotePrivacyModeActive;
+            set
+            {
+                if (SetProperty(ref _isRemotePrivacyModeActive, value))
+                {
+                    OnPropertyChanged(nameof(PrivacyButtonContent));
+                    OnPropertyChanged(nameof(PrivacyButtonBackgroundBrush));
+                }
+            }
+        }
+
+        public string PrivacyButtonContent => IsRemotePrivacyModeActive ? "🔒 Ecrã Ocultado" : "_ Ocultar Rotina";
+        public System.Windows.Media.Brush PrivacyButtonBackgroundBrush => IsRemotePrivacyModeActive
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38)) // #DC2626
+            : (System.Windows.Media.Brush)System.Windows.Application.Current.FindResource("CardBackground");
 
         // Propriedades de Chat e Visualização
         public ObservableCollection<ChatMessageItem> ChatMessages { get; } = new();
@@ -731,8 +834,42 @@ namespace RotinaRemote.Client.ViewModels
             SendRemoteMinimizeCommand = new RelayCommand(SendRemoteMinimize);
             SendRemoteMaximizeCommand = new RelayCommand(SendRemoteMaximize);
             SendRemoteCloseCommand = new RelayCommand(SendRemoteClose);
+            SendRemoteMinimizeHostRotinaCommand = new RelayCommand(SendRemoteMinimizeHostRotina);
+            SendRemoteMaximizeHostRotinaCommand = new RelayCommand(SendRemoteMaximizeHostRotina);
+            OpenSendFileDialogCommand = new RelayCommand(OpenSendFileDialog);
             MinimizeLocalWindowCommand = new RelayCommand(MinimizeLocalWindow);
             MaximizeLocalWindowCommand = new RelayCommand(MaximizeLocalWindow);
+
+            RefreshRemoteProcessesCommand = new RelayCommand(RefreshRemoteProcesses);
+            KillRemoteProcessCommand = new RelayCommand<RemoteProcessItem>(KillRemoteProcess);
+            OpenProcessTabCommand = new RelayCommand(OpenProcessTab);
+            ReturnToScreenTabCommand = new RelayCommand(ReturnToScreenTab);
+            ClearProcessFilterCommand = new RelayCommand(() => ProcessFilter = string.Empty);
+
+            _fileTransferEngine.FileReceived += (savedPath, size) =>
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    string fileName = Path.GetFileName(savedPath);
+                    ChatMessages.Add(new ChatMessageItem
+                    {
+                        SenderId = "Sistema",
+                        SenderName = "Transferência",
+                        Message = $"📁 Ficheiro recebido: {fileName} ({size / 1024.0:F1} KB) pronto a Colar (Ctrl+V) ou guardado no Ambiente de Trabalho.",
+                        Timestamp = DateTime.Now,
+                        IsOutgoing = false
+                    });
+
+                    if (!IsChatOpen)
+                    {
+                        UnreadChatCount++;
+                    }
+
+                    _clipboardSync.ReceiveRemoteFiles(new[] { savedPath });
+
+                    try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
+                });
+            };
 
             SendChatMessageCommand = new RelayCommand(SendChatMessage);
             ToggleChatCommand = new RelayCommand(ToggleChat);
@@ -899,6 +1036,7 @@ namespace RotinaRemote.Client.ViewModels
             try
             {
                 AppLogger.LogInfo("RemoteSession", "[HOST ACTION] Desconexão manual acionada pelo utilizador no separador Ligações.");
+                PrivacyScreenManager.Instance.Deactivate();
                 _clipboardSync.Stop();
                 _sessionMonitoringCts?.Cancel();
                 if (_incomingSession != null)
@@ -957,6 +1095,7 @@ namespace RotinaRemote.Client.ViewModels
             {
                 AppLogger.LogWarning("RemoteSession", "[KILL SESSION] Ordem de KILL imediato acionada pelo utilizador. A forçar encerramento total da sessão!");
 
+                PrivacyScreenManager.Instance.Deactivate();
                 _clipboardSync.Stop();
                 _sessionMonitoringCts?.Cancel();
                 _streamingCts?.Cancel();
@@ -1028,42 +1167,255 @@ namespace RotinaRemote.Client.ViewModels
             }
         }
 
-        private void SendRemoteMinimize()
+        private void SendRemoteWindowControl(RemoteWindowAction action)
         {
             if (_activeSession != null && _activeSession.IsConnected)
             {
-                // Win + Down
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x5B });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x28 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x28 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x5B });
-                AppLogger.LogInfo("RemoteSession", "[CLIENT COMMAND] Teclas Win+Down enviadas ao host para minimizar janela ativa.");
+                var payload = new RemoteWindowControlPayload { Action = action };
+                var bytes = MessageSerializer.SerializeJson(payload);
+                var packet = new PacketFrame(ChannelType.Control, 0, bytes);
+                _ = _activeSession.SendFrameAsync(packet);
+                AppLogger.LogInfo("RemoteSession", $"[CLIENT COMMAND] Ação de janela remota enviada: {action}");
             }
+        }
+
+        private void SendRemoteMinimize()
+        {
+            SendRemoteWindowControl(RemoteWindowAction.MinimizeActiveWindow);
         }
 
         private void SendRemoteMaximize()
         {
-            if (_activeSession != null && _activeSession.IsConnected)
-            {
-                // Win + Up
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x5B });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x26 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x26 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x5B });
-                AppLogger.LogInfo("RemoteSession", "[CLIENT COMMAND] Teclas Win+Up enviadas ao host para maximizar janela ativa.");
-            }
+            SendRemoteWindowControl(RemoteWindowAction.MaximizeActiveWindow);
         }
 
         private void SendRemoteClose()
         {
+            SendRemoteWindowControl(RemoteWindowAction.CloseActiveWindow);
+        }
+
+        private void SendRemoteMinimizeHostRotina()
+        {
+            SendRemoteWindowControl(RemoteWindowAction.MinimizeHostRotina);
+            IsRemotePrivacyModeActive = true;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                ChatMessages.Add(new ChatMessageItem
+                {
+                    SenderId = "Sistema",
+                    SenderName = "Privacidade",
+                    Message = "🔒 Modo de Privacidade ATIVO no computador remoto: o utilizador remoto não consegue ver o que está a fazer.",
+                    Timestamp = DateTime.Now,
+                    IsOutgoing = false
+                });
+            });
+        }
+
+        private void SendRemoteMaximizeHostRotina()
+        {
+            SendRemoteWindowControl(RemoteWindowAction.MaximizeHostRotina);
+            IsRemotePrivacyModeActive = false;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                ChatMessages.Add(new ChatMessageItem
+                {
+                    SenderId = "Sistema",
+                    SenderName = "Privacidade",
+                    Message = "👁️ Modo de Privacidade DESATIVADO no computador remoto: a visualização do ecrã remoto foi reposta.",
+                    Timestamp = DateTime.Now,
+                    IsOutgoing = false
+                });
+            });
+        }
+
+        public void OpenProcessTab()
+        {
+            SelectedTabIndex = 1;
+            RemoteSessionSubTabIndex = 1;
+            RefreshRemoteProcesses();
+        }
+
+        public void ReturnToScreenTab()
+        {
+            SelectedTabIndex = 1;
+            RemoteSessionSubTabIndex = 0;
+        }
+
+        private void FilterProcesses()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                FilteredRemoteProcesses.Clear();
+                var filter = _processFilter?.Trim().ToLowerInvariant() ?? string.Empty;
+                foreach (var proc in RemoteProcesses)
+                {
+                    if (string.IsNullOrEmpty(filter) ||
+                        proc.ProcessName.ToLowerInvariant().Contains(filter) ||
+                        proc.ProcessId.ToString().Contains(filter) ||
+                        proc.MainWindowTitle.ToLowerInvariant().Contains(filter))
+                    {
+                        FilteredRemoteProcesses.Add(proc);
+                    }
+                }
+            });
+        }
+
+        public async void RefreshRemoteProcesses()
+        {
+            if (_activeSession == null || !_activeSession.IsConnected)
+            {
+                ProcessManagerStatusText = "Não é possível listar processos: nenhuma sessão remota ativa ligada.";
+                return;
+            }
+
+            try
+            {
+                IsLoadingProcesses = true;
+                ProcessManagerStatusText = "A obter lista de processos do computador remoto (em segundo plano)...";
+
+                var req = new ProcessManagerPayload
+                {
+                    Action = ProcessManagerAction.ListRequest
+                };
+                var bytes = MessageSerializer.SerializeJson(req);
+                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.ProcessManager, 0, bytes));
+            }
+            catch (Exception ex)
+            {
+                IsLoadingProcesses = false;
+                ProcessManagerStatusText = $"Erro ao solicitar processos: {ex.Message}";
+                AppLogger.LogError("ProcessManager", "Erro ao solicitar processos ao anfitrião", ex);
+            }
+        }
+
+        public async void KillRemoteProcess(RemoteProcessItem? item = null)
+        {
+            var target = item ?? SelectedRemoteProcess;
+            if (target == null)
+            {
+                MessageBox.Show("Por favor selecione um processo da lista para terminar.", "Gestor de Processos", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_activeSession == null || !_activeSession.IsConnected)
+            {
+                MessageBox.Show("Sessão remota não está ativa.", "Gestor de Processos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Tem a certeza de que deseja terminar o processo '{target.ProcessName}' (PID {target.ProcessId}) no computador remoto?\n\nEsta ação será executada silenciosamente em segundo plano.",
+                "Terminar Processo Remoto",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning
+            );
+
+            if (confirm != MessageBoxResult.Yes) return;
+
+            try
+            {
+                ProcessManagerStatusText = $"A terminar processo '{target.ProcessName}' (PID {target.ProcessId}) no computador remoto...";
+                var req = new ProcessManagerPayload
+                {
+                    Action = ProcessManagerAction.KillRequest,
+                    TargetProcessId = target.ProcessId
+                };
+                var bytes = MessageSerializer.SerializeJson(req);
+                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.ProcessManager, 0, bytes));
+            }
+            catch (Exception ex)
+            {
+                ProcessManagerStatusText = $"Falha ao enviar ordem de terminação: {ex.Message}";
+                AppLogger.LogError("ProcessManager", "Falha ao enviar ordem de terminação de processo", ex);
+            }
+        }
+
+        public void OpenSendFileDialog()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Selecionar ficheiros para transferir",
+                Multiselect = true
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                _ = SendFilesAsync(dlg.FileNames);
+            }
+        }
+
+        public async Task SendFilesAsync(string[] filePaths)
+        {
+            if (filePaths == null || filePaths.Length == 0) return;
+
+            ConnectionSession? session = null;
             if (_activeSession != null && _activeSession.IsConnected)
             {
-                // Alt + F4
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x12 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyDown, VirtualKeyCode = 0x73 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x73 });
-                SendInputToRemoteHost(new InputPacketPayload { Type = ProtocolInputType.Keyboard, KeyType = (byte)KeyEventType.KeyUp, VirtualKeyCode = 0x12 });
-                AppLogger.LogInfo("RemoteSession", "[CLIENT COMMAND] Teclas Alt+F4 enviadas ao host para fechar janela ativa.");
+                session = _activeSession;
+            }
+            else if (_incomingSession != null && _incomingSession.IsConnected)
+            {
+                session = _incomingSession;
+            }
+
+            if (session == null)
+            {
+                AppLogger.LogWarning("FileTransfer", "Nenhuma sessão ativa ligada para enviar ficheiros.");
+                return;
+            }
+
+            foreach (var path in filePaths)
+            {
+                if (!File.Exists(path)) continue;
+
+                try
+                {
+                    var fileInfo = new FileInfo(path);
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        ChatMessages.Add(new ChatMessageItem
+                        {
+                            SenderId = _identity.FormattedId,
+                            SenderName = "Eu",
+                            Message = $"📁 A enviar ficheiro: {fileInfo.Name} ({fileInfo.Length / 1024.0:F1} KB)...",
+                            Timestamp = DateTime.Now,
+                            IsOutgoing = true
+                        });
+                    });
+
+                    await _fileTransferEngine.SendFileAsync(path, async (payload) =>
+                    {
+                        var bytes = MessageSerializer.SerializeJson(payload);
+                        var packet = new PacketFrame(ChannelType.File, 0, bytes);
+                        await session.SendFrameAsync(packet);
+                    });
+
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        ChatMessages.Add(new ChatMessageItem
+                        {
+                            SenderId = _identity.FormattedId,
+                            SenderName = "Eu",
+                            Message = $"✅ Ficheiro '{fileInfo.Name}' transferido com sucesso!",
+                            Timestamp = DateTime.Now,
+                            IsOutgoing = true
+                        });
+                    });
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("FileTransfer", $"Erro ao transferir '{path}'", ex);
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        ChatMessages.Add(new ChatMessageItem
+                        {
+                            SenderId = _identity.FormattedId,
+                            SenderName = "Sistema",
+                            Message = $"❌ Falha ao enviar '{Path.GetFileName(path)}': {ex.Message}",
+                            Timestamp = DateTime.Now,
+                            IsOutgoing = true
+                        });
+                    });
+                }
             }
         }
 
@@ -1423,10 +1775,17 @@ namespace RotinaRemote.Client.ViewModels
                                     var bytes = MessageSerializer.SerializeJson(clipPayload);
                                     await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Clipboard, 0, bytes));
                                 }
+                            }, async files =>
+                            {
+                                if (_incomingSession != null && _incomingSession.IsConnected && EnableClipboardSync)
+                                {
+                                    await SendFilesAsync(files);
+                                }
                             });
                         }
                         session.Disconnected += () =>
                         {
+                            PrivacyScreenManager.Instance.Deactivate();
                             _clipboardSync.Stop();
                             _sessionMonitoringCts?.Cancel();
                             DisplayResolutionManager.RestoreOriginalResolution();
@@ -1688,10 +2047,17 @@ namespace RotinaRemote.Client.ViewModels
                                 var bytes = MessageSerializer.SerializeJson(clipPayload);
                                 await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Clipboard, 0, bytes));
                             }
+                        }, async files =>
+                        {
+                            if (_incomingSession != null && _incomingSession.IsConnected && EnableClipboardSync)
+                            {
+                                await SendFilesAsync(files);
+                            }
                         });
                     }
                     session.Disconnected += () =>
                     {
+                        PrivacyScreenManager.Instance.Deactivate();
                         _clipboardSync.Stop();
                         _sessionMonitoringCts?.Cancel();
                         DisplayResolutionManager.RestoreOriginalResolution();
@@ -1815,33 +2181,172 @@ namespace RotinaRemote.Client.ViewModels
                 }
                 return;
             }
+
+            if (frame.Channel == ChannelType.File && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var filePayload = MessageSerializer.DeserializeJson<FileTransferPayload>(frame.Payload);
+                    if (filePayload != null)
+                    {
+                        _ = _fileTransferEngine.HandleIncomingPayloadAsync(filePayload);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("FileTransfer", "Erro ao processar pacote de ficheiro do cliente", ex);
+                }
+                return;
+            }
+
+            if (frame.Channel == ChannelType.ProcessManager && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var procPayload = MessageSerializer.DeserializeJson<ProcessManagerPayload>(frame.Payload);
+                    if (procPayload != null && _incomingSession != null && _incomingSession.IsConnected)
+                    {
+                        if (procPayload.Action == ProcessManagerAction.ListRequest)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var list = new List<RemoteProcessItem>();
+                                    var procs = Process.GetProcesses();
+                                    foreach (var p in procs)
+                                    {
+                                        try
+                                        {
+                                            list.Add(new RemoteProcessItem
+                                            {
+                                                ProcessId = p.Id,
+                                                ProcessName = p.ProcessName,
+                                                MainWindowTitle = p.MainWindowTitle ?? string.Empty,
+                                                MemoryBytes = p.WorkingSet64,
+                                                IsResponding = p.Responding
+                                            });
+                                        }
+                                        catch
+                                        {
+                                            // Processos de sistema protegidos ou terminados
+                                        }
+                                        finally
+                                        {
+                                            p.Dispose();
+                                        }
+                                    }
+
+                                    list = list.OrderByDescending(p => p.MemoryBytes).ToList();
+
+                                    var responsePayload = new ProcessManagerPayload
+                                    {
+                                        Action = ProcessManagerAction.ListResponse,
+                                        Processes = list,
+                                        Success = true,
+                                        Message = $"Lista obtida: {list.Count} processos remotos."
+                                    };
+                                    var bytes = MessageSerializer.SerializeJson(responsePayload);
+                                    if (_incomingSession != null && _incomingSession.IsConnected)
+                                    {
+                                        await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.ProcessManager, 0, bytes));
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    AppLogger.LogError("ProcessManager", "Host: Erro ao listar processos remotos", ex);
+                                }
+                            });
+                        }
+                        else if (procPayload.Action == ProcessManagerAction.KillRequest)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                bool success = false;
+                                string msg;
+                                try
+                                {
+                                    var p = Process.GetProcessById(procPayload.TargetProcessId);
+                                    string pName = p.ProcessName;
+                                    p.Kill(entireProcessTree: true);
+                                    p.Dispose();
+                                    success = true;
+                                    msg = $"Processo '{pName}' (PID {procPayload.TargetProcessId}) terminado com sucesso.";
+                                    AppLogger.LogInfo("ProcessManager", $"[HOST KILL] {msg}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    success = false;
+                                    msg = $"Falha ao terminar processo (PID {procPayload.TargetProcessId}): {ex.Message}";
+                                    AppLogger.LogWarning("ProcessManager", msg);
+                                }
+
+                                var responsePayload = new ProcessManagerPayload
+                                {
+                                    Action = ProcessManagerAction.KillResponse,
+                                    TargetProcessId = procPayload.TargetProcessId,
+                                    Success = success,
+                                    Message = msg
+                                };
+                                var bytes = MessageSerializer.SerializeJson(responsePayload);
+                                if (_incomingSession != null && _incomingSession.IsConnected)
+                                {
+                                    await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.ProcessManager, 0, bytes));
+                                }
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("ProcessManager", "Host: Erro ao processar frame de processos do cliente", ex);
+                }
+                return;
+            }
+
             if (frame.Channel == ChannelType.Control && frame.Payload.Length > 0)
             {
                 try
                 {
-                    var resReq = MessageSerializer.DeserializeJson<ResolutionChangeRequestPayload>(frame.Payload);
-                    if (resReq != null && resReq.TargetWidth > 0 && resReq.TargetHeight > 0)
+                    using var doc = System.Text.Json.JsonDocument.Parse(frame.Payload);
+                    if (doc.RootElement.TryGetProperty("Action", out var actionProp))
                     {
-                        _incomingClientScreenWidth = resReq.TargetWidth;
-                        _incomingClientScreenHeight = resReq.TargetHeight;
-                        bool adjusted = DisplayResolutionManager.TryAdjustHostResolution(resReq.TargetWidth, resReq.TargetHeight, out string resMsg);
-                        _screenCapturer.SetTargetResolution(resReq.TargetWidth, resReq.TargetHeight);
-                        AppLogger.LogInfo("RemoteSession", $"[RESOLUTION CHANGE] Pedido recebido do cliente: {resReq.TargetWidth}x{resReq.TargetHeight}: {resMsg}");
+                        var action = (RemoteWindowAction)actionProp.GetByte();
+                        ExecuteRemoteWindowAction(action);
+                        return;
+                    }
 
-                        if (_incomingSession != null && _incomingSession.IsConnected)
+                    if (doc.RootElement.TryGetProperty("TargetWidth", out _))
+                    {
+                        var resReq = MessageSerializer.DeserializeJson<ResolutionChangeRequestPayload>(frame.Payload);
+                        if (resReq != null && resReq.TargetWidth > 0 && resReq.TargetHeight > 0)
                         {
-                            var resp = new ResolutionChangeResponsePayload
+                            _incomingClientScreenWidth = resReq.TargetWidth;
+                            _incomingClientScreenHeight = resReq.TargetHeight;
+                            bool adjusted = DisplayResolutionManager.TryAdjustHostResolution(resReq.TargetWidth, resReq.TargetHeight, out string resMsg);
+                            _screenCapturer.SetTargetResolution(resReq.TargetWidth, resReq.TargetHeight);
+                            AppLogger.LogInfo("RemoteSession", $"[RESOLUTION CHANGE] Pedido recebido do cliente: {resReq.TargetWidth}x{resReq.TargetHeight}: {resMsg}");
+
+                            if (_incomingSession != null && _incomingSession.IsConnected)
                             {
-                                Success = adjusted,
-                                EffectiveWidth = _incomingClientScreenWidth,
-                                EffectiveHeight = _incomingClientScreenHeight,
-                                Message = resMsg
-                            };
-                            _ = _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, MessageSerializer.SerializeJson(resp)));
+                                var resp = new ResolutionChangeResponsePayload
+                                {
+                                    Success = adjusted,
+                                    EffectiveWidth = _incomingClientScreenWidth,
+                                    EffectiveHeight = _incomingClientScreenHeight,
+                                    Message = resMsg
+                                };
+                                _ = _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.Control, 0, MessageSerializer.SerializeJson(resp)));
+                            }
                         }
+                        return;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("RemoteSession", "Erro ao processar pacote de controlo do cliente", ex);
+                }
+                return;
             }
 
             if (frame.Channel == ChannelType.Input && frame.Payload.Length > 0)
@@ -1892,6 +2397,36 @@ namespace RotinaRemote.Client.ViewModels
                 {
                     AppLogger.LogError("RemoteSession", "Host: Erro ao processar frame de input recebido", ex);
                 }
+            }
+        }
+
+        private void ExecuteRemoteWindowAction(RemoteWindowAction action)
+        {
+            AppLogger.LogInfo("RemoteSession", $"[HOST EXECUTE] Ação de controlo de janela recebida: {action}");
+
+            switch (action)
+            {
+                case RemoteWindowAction.MinimizeActiveWindow:
+                    InputInjector.MinimizeActiveWindow();
+                    break;
+
+                case RemoteWindowAction.MaximizeActiveWindow:
+                    InputInjector.MaximizeOrRestoreActiveWindow();
+                    break;
+
+                case RemoteWindowAction.CloseActiveWindow:
+                    InputInjector.CloseActiveWindow();
+                    break;
+
+                case RemoteWindowAction.MinimizeHostRotina:
+                    AppLogger.LogInfo("RemoteSession", "[HOST PRIVACY] Ativando Modo de Privacidade / Ocultar Rotina a pedido do técnico remoto...");
+                    PrivacyScreenManager.Instance.Activate();
+                    break;
+
+                case RemoteWindowAction.MaximizeHostRotina:
+                    AppLogger.LogInfo("RemoteSession", "[HOST PRIVACY] Desativando Modo de Privacidade / Mostrar Rotina a pedido do técnico remoto...");
+                    PrivacyScreenManager.Instance.Deactivate();
+                    break;
             }
         }
 
@@ -2352,6 +2887,12 @@ namespace RotinaRemote.Client.ViewModels
                                 var bytes = MessageSerializer.SerializeJson(clipPayload);
                                 await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.Clipboard, 0, bytes));
                             }
+                        }, async files =>
+                        {
+                            if (_activeSession != null && _activeSession.IsConnected && EnableClipboardSync)
+                            {
+                                await SendFilesAsync(files);
+                            }
                         });
                     }
 
@@ -2586,6 +3127,79 @@ namespace RotinaRemote.Client.ViewModels
                     AppLogger.LogError("Chat", "Erro ao processar mensagem de chat do anfitrião", ex);
                 }
             }
+
+            if (frame.Channel == ChannelType.File && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var filePayload = MessageSerializer.DeserializeJson<FileTransferPayload>(frame.Payload);
+                    if (filePayload != null)
+                    {
+                        _ = _fileTransferEngine.HandleIncomingPayloadAsync(filePayload);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("FileTransfer", "Erro ao processar pacote de ficheiro do anfitrião", ex);
+                }
+            }
+
+            if (frame.Channel == ChannelType.ProcessManager && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var procPayload = MessageSerializer.DeserializeJson<ProcessManagerPayload>(frame.Payload);
+                    if (procPayload != null)
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            if (procPayload.Action == ProcessManagerAction.ListResponse)
+                            {
+                                RemoteProcesses.Clear();
+                                long totalMem = 0;
+                                if (procPayload.Processes != null)
+                                {
+                                    foreach (var item in procPayload.Processes)
+                                    {
+                                        RemoteProcesses.Add(item);
+                                        totalMem += item.MemoryBytes;
+                                    }
+                                }
+                                TotalRemoteProcessesCount = RemoteProcesses.Count;
+                                TotalRemoteMemoryFormatted = $"{totalMem / (1024.0 * 1024.0):F0} MB ({(totalMem / (1024.0 * 1024.0 * 1024.0)):F2} GB)";
+                                FilterProcesses();
+                                IsLoadingProcesses = false;
+                                ProcessManagerStatusText = $"Atualizado com sucesso às {DateTime.Now:HH:mm:ss}. {RemoteProcesses.Count} processos remotos listados.";
+                            }
+                            else if (procPayload.Action == ProcessManagerAction.KillResponse)
+                            {
+                                IsLoadingProcesses = false;
+                                ProcessManagerStatusText = procPayload.Message;
+                                if (procPayload.Success)
+                                {
+                                    var existing = RemoteProcesses.FirstOrDefault(p => p.ProcessId == procPayload.TargetProcessId);
+                                    if (existing != null) RemoteProcesses.Remove(existing);
+                                    var existingFiltered = FilteredRemoteProcesses.FirstOrDefault(p => p.ProcessId == procPayload.TargetProcessId);
+                                    if (existingFiltered != null) FilteredRemoteProcesses.Remove(existingFiltered);
+                                    TotalRemoteProcessesCount = RemoteProcesses.Count;
+                                }
+                                ChatMessages.Add(new ChatMessageItem
+                                {
+                                    SenderId = "Sistema",
+                                    SenderName = "Gestor Processos",
+                                    Message = procPayload.Message,
+                                    Timestamp = DateTime.Now,
+                                    IsOutgoing = false
+                                });
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("ProcessManager", "Cliente: Erro ao processar resposta do gestor de processos", ex);
+                }
+            }
         }
 
         private void OnSessionDisconnected()
@@ -2610,6 +3224,9 @@ namespace RotinaRemote.Client.ViewModels
 
         private void Disconnect()
         {
+            PrivacyScreenManager.Instance.Deactivate();
+            IsRemotePrivacyModeActive = false;
+            RemoteSessionSubTabIndex = 0;
             _clipboardSync.Stop();
             _sessionMonitoringCts?.Cancel();
             DisplayResolutionManager.RestoreOriginalResolution();

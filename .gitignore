@@ -31,4 +31,8 @@ tests/**/log.txt
 
 # Local prompt specs & notes
 prompt.md
-
+*.cookie
+*_cookie.txt
+session.txt
+wp_*.html
+*_wpftmp.*

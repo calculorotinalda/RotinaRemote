@@ -15,7 +15,8 @@ namespace RotinaRemote.Protocol
         HeartbeatPong,
         DisconnectNotice,
         ResolutionChangeRequest,
-        ResolutionChangeResponse
+        ResolutionChangeResponse,
+        RemoteWindowControl
     }
 
     public class HandshakeRequestPayload
@@ -106,6 +107,67 @@ namespace RotinaRemote.Protocol
     {
         public string Text { get; set; } = string.Empty;
         public long Timestamp { get; set; } = DateTime.UtcNow.Ticks;
+    }
+
+    public enum RemoteWindowAction : byte
+    {
+        MinimizeActiveWindow = 0,
+        MaximizeActiveWindow = 1,
+        CloseActiveWindow = 2,
+        MinimizeHostRotina = 3,
+        MaximizeHostRotina = 4
+    }
+
+    public class RemoteWindowControlPayload
+    {
+        public RemoteWindowAction Action { get; set; }
+    }
+
+    public enum FileTransferAction : byte
+    {
+        Start = 1,
+        Chunk = 2,
+        Complete = 3,
+        Cancel = 4
+    }
+
+    public class FileTransferPayload
+    {
+        public FileTransferAction Action { get; set; }
+        public string TransferId { get; set; } = Guid.NewGuid().ToString("N");
+        public string FileName { get; set; } = string.Empty;
+        public long TotalBytes { get; set; }
+        public long Offset { get; set; }
+        public string DataBase64 { get; set; } = string.Empty;
+        public string Sha256 { get; set; } = string.Empty;
+    }
+
+    public enum ProcessManagerAction : byte
+    {
+        ListRequest = 1,
+        ListResponse = 2,
+        KillRequest = 3,
+        KillResponse = 4
+    }
+
+    public class RemoteProcessItem
+    {
+        public int ProcessId { get; set; }
+        public string ProcessName { get; set; } = string.Empty;
+        public string MainWindowTitle { get; set; } = string.Empty;
+        public long MemoryBytes { get; set; }
+        public string MemoryFormatted => $"{MemoryBytes / (1024.0 * 1024.0):F1} MB";
+        public bool IsResponding { get; set; } = true;
+        public string Status => IsResponding ? "Em Execução" : "Não Responde";
+    }
+
+    public class ProcessManagerPayload
+    {
+        public ProcessManagerAction Action { get; set; }
+        public int TargetProcessId { get; set; }
+        public List<RemoteProcessItem> Processes { get; set; } = new();
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
     }
 
     public static class MessageSerializer

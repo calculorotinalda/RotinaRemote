@@ -76,6 +76,12 @@ namespace RotinaRemote.Client.Views
                     _isUpdatingPassword = false;
                 }
             }
+            else if (e.PropertyName == nameof(MainViewModel.SelectedViewScale) ||
+                     e.PropertyName == nameof(MainViewModel.IsZoomEnabled) ||
+                     e.PropertyName == nameof(MainViewModel.RemoteScreenSource))
+            {
+                Dispatcher.InvokeAsync(UpdateImageConstraints);
+            }
         }
 
         private void TargetPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -96,6 +102,72 @@ namespace RotinaRemote.Client.Views
 
         private MainViewModel? ViewModel => DataContext as MainViewModel;
 
+        private void OnScreenContainerBorderSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateImageConstraints();
+        }
+
+        public void UpdateImageConstraints()
+        {
+            var vm = ViewModel;
+            if (RemoteScreenImage == null || ScreenContainerBorder == null) return;
+
+            if (vm == null || !vm.IsZoomEnabled)
+            {
+                RemoteScreenImage.MaxWidth = Math.Max(0, ScreenContainerBorder.ActualWidth);
+                RemoteScreenImage.MaxHeight = Math.Max(0, ScreenContainerBorder.ActualHeight);
+                RemoteScreenImage.ClearValue(FrameworkElement.WidthProperty);
+                RemoteScreenImage.ClearValue(FrameworkElement.HeightProperty);
+            }
+            else
+            {
+                RemoteScreenImage.MaxWidth = double.PositiveInfinity;
+                RemoteScreenImage.MaxHeight = double.PositiveInfinity;
+                if (RemoteScreenImage.Source is System.Windows.Media.Imaging.BitmapSource bmp && bmp.PixelWidth > 0 && bmp.PixelHeight > 0)
+                {
+                    RemoteScreenImage.Width = bmp.PixelWidth;
+                    RemoteScreenImage.Height = bmp.PixelHeight;
+                }
+            }
+        }
+
+        private void OnRemoteScreenDragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = DragDropEffects.Copy;
+                e.Handled = true;
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+        }
+
+        private async void OnRemoteScreenDrop(object sender, DragEventArgs e)
+        {
+            try
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    string[]? files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    if (files != null && files.Length > 0)
+                    {
+                        var vm = ViewModel;
+                        if (vm != null && vm.IsConnected)
+                        {
+                            await vm.SendFilesAsync(files);
+                        }
+                    }
+                    e.Handled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                RotinaRemote.Core.Logging.AppLogger.LogError("FileTransfer", "Erro ao processar ficheiros arrastados (Drop)", ex);
+            }
+        }
+
         private DateTime _lastMouseMoveTime = DateTime.MinValue;
 
         private bool GetNormalizedCoordinates(Point pos, out double normX, out double normY)
@@ -103,52 +175,14 @@ namespace RotinaRemote.Client.Views
             normX = 0;
             normY = 0;
 
-            if (RemoteScreenImage.ActualWidth <= 0 || RemoteScreenImage.ActualHeight <= 0) return false;
-            if (RemoteScreenImage.Source is not System.Windows.Media.Imaging.BitmapSource bmp) return false;
+            double actW = RemoteScreenImage.ActualWidth;
+            double actH = RemoteScreenImage.ActualHeight;
 
-            double imgWidth = bmp.PixelWidth;
-            double imgHeight = bmp.PixelHeight;
+            if (actW <= 0 || actH <= 0) return false;
+            if (pos.X < 0 || pos.X > actW || pos.Y < 0 || pos.Y > actH) return false;
 
-            if (imgWidth <= 0 || imgHeight <= 0) return false;
-
-            double ctrlWidth = RemoteScreenImage.ActualWidth;
-            double ctrlHeight = RemoteScreenImage.ActualHeight;
-
-            var vm = ViewModel;
-            if (vm != null && vm.IsZoomEnabled)
-            {
-                if (pos.X < 0 || pos.X > ctrlWidth || pos.Y < 0 || pos.Y > ctrlHeight) return false;
-                normX = System.Math.Clamp(pos.X / ctrlWidth, 0.0, 1.0);
-                normY = System.Math.Clamp(pos.Y / ctrlHeight, 0.0, 1.0);
-                return true;
-            }
-
-            if (RemoteScreenImage.Stretch == System.Windows.Media.Stretch.Fill)
-            {
-                if (pos.X < 0 || pos.X > ctrlWidth || pos.Y < 0 || pos.Y > ctrlHeight) return false;
-                normX = System.Math.Clamp(pos.X / ctrlWidth, 0.0, 1.0);
-                normY = System.Math.Clamp(pos.Y / ctrlHeight, 0.0, 1.0);
-                return true;
-            }
-
-            double scale = System.Math.Min(ctrlWidth / imgWidth, ctrlHeight / imgHeight);
-            double dispWidth = imgWidth * scale;
-            double dispHeight = imgHeight * scale;
-
-            if (dispWidth <= 0 || dispHeight <= 0) return false;
-
-            double offsetX = (ctrlWidth - dispWidth) / 2.0;
-            double offsetY = (ctrlHeight - dispHeight) / 2.0;
-
-            double relX = pos.X - offsetX;
-            double relY = pos.Y - offsetY;
-
-            // Reject clicks outside the rendered remote desktop (black borders)
-            if (relX < 0 || relX > dispWidth || relY < 0 || relY > dispHeight) return false;
-
-            normX = System.Math.Clamp(relX / dispWidth, 0.0, 1.0);
-            normY = System.Math.Clamp(relY / dispHeight, 0.0, 1.0);
-
+            normX = Math.Clamp(pos.X / actW, 0.0, 1.0);
+            normY = Math.Clamp(pos.Y / actH, 0.0, 1.0);
             return true;
         }
 

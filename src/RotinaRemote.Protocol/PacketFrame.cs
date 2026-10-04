@@ -10,7 +10,8 @@ namespace RotinaRemote.Protocol
         Input = 0x02,
         File = 0x03,
         Clipboard = 0x04,
-        Chat = 0x05
+        Chat = 0x05,
+        ProcessManager = 0x06
     }
 
     public class PacketFrame

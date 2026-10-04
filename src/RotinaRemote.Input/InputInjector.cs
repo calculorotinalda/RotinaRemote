@@ -147,6 +147,13 @@ namespace RotinaRemote.Input
         [DllImport("user32.dll")]
         private static extern bool IsZoomed(IntPtr hWnd);
 
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_MINIMIZE = 6;
+        private const int SW_MAXIMIZE = 3;
+        private const int SW_RESTORE = 9;
+
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
         {
@@ -447,8 +454,10 @@ namespace RotinaRemote.Input
 
                 if (clickFlags != 0)
                 {
-                    // Canal 1: SendInput atómico com coordenadas absolutas e clique imediato
-                    uint clickDwFlags = clickFlags | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+                    // Canal 1: SendInput atómico:
+                    // inputs[0]: Posiciona o cursor nas coordenadas exatas
+                    // inputs[1]: Dispara o clique sem flag MOVE para não gerar cancelamento de clique por arrasto em botões de título (minimizar/maximizar)
+                    uint clickDwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
 
                     var inputs = new INPUT[2];
                     inputs[0] = new INPUT
@@ -571,6 +580,7 @@ namespace RotinaRemote.Input
                     IntPtr root = GetAncestor(fg, GA_ROOT);
                     IntPtr target = root != IntPtr.Zero ? root : fg;
                     PostMessage(target, WM_SYSCOMMAND, SC_MINIMIZE, IntPtr.Zero);
+                    ShowWindow(target, SW_MINIMIZE);
                     AppLogger.LogInfo("InputInjector", $"[WINDOW ACTION] Minimizar disparado para a janela ativa ({target}).");
                 }
             }
@@ -586,8 +596,10 @@ namespace RotinaRemote.Input
                 {
                     IntPtr root = GetAncestor(fg, GA_ROOT);
                     IntPtr target = root != IntPtr.Zero ? root : fg;
-                    IntPtr cmd = IsZoomed(target) ? SC_RESTORE : SC_MAXIMIZE;
+                    bool zoomed = IsZoomed(target);
+                    IntPtr cmd = zoomed ? SC_RESTORE : SC_MAXIMIZE;
                     PostMessage(target, WM_SYSCOMMAND, cmd, IntPtr.Zero);
+                    ShowWindow(target, zoomed ? SW_RESTORE : SW_MAXIMIZE);
                     AppLogger.LogInfo("InputInjector", $"[WINDOW ACTION] Maximizar/Restaurar ({cmd}) disparado para a janela ativa ({target}).");
                 }
             }
