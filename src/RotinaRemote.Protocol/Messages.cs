@@ -170,6 +170,39 @@ namespace RotinaRemote.Protocol
         public string Message { get; set; } = string.Empty;
     }
 
+    public enum ServiceManagerAction : byte
+    {
+        ListRequest = 1,
+        ListResponse = 2,
+        StartRequest = 3,
+        StartResponse = 4,
+        StopRequest = 5,
+        StopResponse = 6,
+        ChangeStartupTypeRequest = 7,
+        ChangeStartupTypeResponse = 8
+    }
+
+    public class RemoteServiceItem
+    {
+        public string ServiceName { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string StartupType { get; set; } = string.Empty;
+        public bool CanStop { get; set; } = true;
+        public bool CanStart { get; set; } = true;
+        public bool IsRunning => Status.Equals("Em Execução", StringComparison.OrdinalIgnoreCase) || Status.Equals("Running", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public class ServiceManagerPayload
+    {
+        public ServiceManagerAction Action { get; set; }
+        public string TargetServiceName { get; set; } = string.Empty;
+        public string NewStartupType { get; set; } = string.Empty;
+        public List<RemoteServiceItem> Services { get; set; } = new();
+        public bool Success { get; set; } = true;
+        public string Message { get; set; } = string.Empty;
+    }
+
     public static class MessageSerializer
     {
         public static byte[] SerializeJson<T>(T payload)

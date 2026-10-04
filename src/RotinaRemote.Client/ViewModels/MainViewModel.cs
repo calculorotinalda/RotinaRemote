@@ -24,6 +24,7 @@ using RotinaRemote.Protocol;
 using RotinaRemote.Screen;
 using RotinaRemote.Security;
 using RotinaRemote.FileTransfer;
+using RotinaRemote.Client.Views;
 
 using Clipboard = System.Windows.Clipboard;
 using MessageBox = System.Windows.MessageBox;
@@ -548,6 +549,14 @@ namespace RotinaRemote.Client.ViewModels
         public ICommand ReturnToScreenTabCommand { get; }
         public ICommand ClearProcessFilterCommand { get; }
 
+        // Comandos de Gestor de Serviços Remotos
+        public ICommand OpenServicesWindowCommand { get; }
+        public ICommand RefreshRemoteServicesCommand { get; }
+        public ICommand StartRemoteServiceCommand { get; }
+        public ICommand StopRemoteServiceCommand { get; }
+        public ICommand ChangeStartupTypeRemoteServiceCommand { get; }
+        public ICommand ClearServiceFilterCommand { get; }
+
         // Propriedades do Gestor de Processos Remotos
         public ObservableCollection<RemoteProcessItem> RemoteProcesses { get; } = new();
         public ObservableCollection<RemoteProcessItem> FilteredRemoteProcesses { get; } = new();
@@ -614,6 +623,82 @@ namespace RotinaRemote.Client.ViewModels
                     }
                 }
             }
+        }
+
+        // Propriedades do Gestor de Serviços Remotos
+        public ObservableCollection<RemoteServiceItem> RemoteServices { get; } = new();
+        public ObservableCollection<RemoteServiceItem> FilteredRemoteServices { get; } = new();
+        public ObservableCollection<string> StartupTypeOptions { get; } = new() { "Automático", "Manual", "Desativado" };
+
+        private string _serviceFilterText = string.Empty;
+        public string ServiceFilterText
+        {
+            get => _serviceFilterText;
+            set
+            {
+                if (SetProperty(ref _serviceFilterText, value))
+                {
+                    FilterServices();
+                }
+            }
+        }
+
+        private RemoteServiceItem? _selectedRemoteService;
+        public RemoteServiceItem? SelectedRemoteService
+        {
+            get => _selectedRemoteService;
+            set
+            {
+                if (SetProperty(ref _selectedRemoteService, value))
+                {
+                    OnPropertyChanged(nameof(HasSelectedRemoteService));
+                    if (value != null && !string.IsNullOrWhiteSpace(value.StartupType))
+                    {
+                        var match = StartupTypeOptions.FirstOrDefault(o => o.Equals(value.StartupType, StringComparison.OrdinalIgnoreCase));
+                        if (match != null)
+                        {
+                            SelectedNewStartupType = match;
+                        }
+                    }
+                }
+            }
+        }
+
+        public bool HasSelectedRemoteService => SelectedRemoteService != null;
+
+        private string _selectedNewStartupType = "Automático";
+        public string SelectedNewStartupType
+        {
+            get => _selectedNewStartupType;
+            set => SetProperty(ref _selectedNewStartupType, value);
+        }
+
+        private int _totalRemoteServicesCount;
+        public int TotalRemoteServicesCount
+        {
+            get => _totalRemoteServicesCount;
+            set => SetProperty(ref _totalRemoteServicesCount, value);
+        }
+
+        private int _runningRemoteServicesCount;
+        public int RunningRemoteServicesCount
+        {
+            get => _runningRemoteServicesCount;
+            set => SetProperty(ref _runningRemoteServicesCount, value);
+        }
+
+        private bool _isLoadingServices;
+        public bool IsLoadingServices
+        {
+            get => _isLoadingServices;
+            set => SetProperty(ref _isLoadingServices, value);
+        }
+
+        private string _servicesStatusText = "Pronto. Clique em 'Atualizar' para listar os serviços remotos.";
+        public string ServicesStatusText
+        {
+            get => _servicesStatusText;
+            set => SetProperty(ref _servicesStatusText, value);
         }
 
         // Modo de Privacidade Remoto
@@ -845,6 +930,13 @@ namespace RotinaRemote.Client.ViewModels
             OpenProcessTabCommand = new RelayCommand(OpenProcessTab);
             ReturnToScreenTabCommand = new RelayCommand(ReturnToScreenTab);
             ClearProcessFilterCommand = new RelayCommand(() => ProcessFilter = string.Empty);
+
+            OpenServicesWindowCommand = new RelayCommand(OpenServicesWindow);
+            RefreshRemoteServicesCommand = new RelayCommand(RefreshRemoteServices);
+            StartRemoteServiceCommand = new RelayCommand(StartRemoteService);
+            StopRemoteServiceCommand = new RelayCommand(StopRemoteService);
+            ChangeStartupTypeRemoteServiceCommand = new RelayCommand(ChangeStartupTypeRemoteService);
+            ClearServiceFilterCommand = new RelayCommand(() => ServiceFilterText = string.Empty);
 
             _fileTransferEngine.FileReceived += (savedPath, size) =>
             {
@@ -1327,6 +1419,200 @@ namespace RotinaRemote.Client.ViewModels
             {
                 ProcessManagerStatusText = $"Falha ao enviar ordem de terminação: {ex.Message}";
                 AppLogger.LogError("ProcessManager", "Falha ao enviar ordem de terminação de processo", ex);
+            }
+        }
+
+        private RemoteServicesWindow? _servicesWindow;
+
+        public void OpenServicesWindow()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_servicesWindow == null || !_servicesWindow.IsLoaded)
+                {
+                    _servicesWindow = new RemoteServicesWindow
+                    {
+                        DataContext = this,
+                        Owner = System.Windows.Application.Current.MainWindow
+                    };
+                    _servicesWindow.Closed += (s, e) => _servicesWindow = null;
+                    _servicesWindow.Show();
+                }
+                else
+                {
+                    if (_servicesWindow.WindowState == WindowState.Minimized)
+                        _servicesWindow.WindowState = WindowState.Normal;
+                    _servicesWindow.Activate();
+                }
+
+                if (_activeSession != null && _activeSession.IsConnected)
+                {
+                    RefreshRemoteServices();
+                }
+                else
+                {
+                    ServicesStatusText = "Aguardando ligação a uma sessão remota para consultar serviços.";
+                }
+            });
+        }
+
+        private void FilterServices()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                FilteredRemoteServices.Clear();
+                var filter = _serviceFilterText?.Trim().ToLowerInvariant() ?? string.Empty;
+                foreach (var svc in RemoteServices)
+                {
+                    if (string.IsNullOrEmpty(filter) ||
+                        svc.ServiceName.ToLowerInvariant().Contains(filter) ||
+                        svc.DisplayName.ToLowerInvariant().Contains(filter) ||
+                        svc.Status.ToLowerInvariant().Contains(filter) ||
+                        svc.StartupType.ToLowerInvariant().Contains(filter))
+                    {
+                        FilteredRemoteServices.Add(svc);
+                    }
+                }
+            });
+        }
+
+        public async void RefreshRemoteServices()
+        {
+            if (_activeSession == null || !_activeSession.IsConnected)
+            {
+                ServicesStatusText = "Não é possível listar serviços: nenhuma sessão remota ativa ligada.";
+                return;
+            }
+
+            try
+            {
+                IsLoadingServices = true;
+                ServicesStatusText = "A obter lista de serviços do computador remoto (em segundo plano)...";
+
+                var req = new ServiceManagerPayload
+                {
+                    Action = ServiceManagerAction.ListRequest
+                };
+                var bytes = MessageSerializer.SerializeJson(req);
+                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+            }
+            catch (Exception ex)
+            {
+                IsLoadingServices = false;
+                ServicesStatusText = $"Erro ao solicitar serviços: {ex.Message}";
+                AppLogger.LogError("ServiceManager", "Erro ao solicitar serviços ao anfitrião", ex);
+            }
+        }
+
+        public async void StartRemoteService()
+        {
+            if (SelectedRemoteService == null)
+            {
+                MessageBox.Show("Por favor selecione um serviço da lista para iniciar.", "Serviços Remotos", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_activeSession == null || !_activeSession.IsConnected)
+            {
+                MessageBox.Show("Sessão remota não está ativa.", "Serviços Remotos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                IsLoadingServices = true;
+                ServicesStatusText = $"A iniciar serviço '{SelectedRemoteService.ServiceName}' no computador remoto...";
+                var req = new ServiceManagerPayload
+                {
+                    Action = ServiceManagerAction.StartRequest,
+                    TargetServiceName = SelectedRemoteService.ServiceName
+                };
+                var bytes = MessageSerializer.SerializeJson(req);
+                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+            }
+            catch (Exception ex)
+            {
+                IsLoadingServices = false;
+                ServicesStatusText = $"Falha ao enviar ordem de início: {ex.Message}";
+                AppLogger.LogError("ServiceManager", "Falha ao enviar ordem de início de serviço", ex);
+            }
+        }
+
+        public async void StopRemoteService()
+        {
+            if (SelectedRemoteService == null)
+            {
+                MessageBox.Show("Por favor selecione um serviço da lista para parar.", "Serviços Remotos", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_activeSession == null || !_activeSession.IsConnected)
+            {
+                MessageBox.Show("Sessão remota não está ativa.", "Serviços Remotos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Tem a certeza de que deseja parar o serviço '{SelectedRemoteService.DisplayName}' ({SelectedRemoteService.ServiceName}) no computador remoto?\n\nEsta ação será executada silenciosamente em segundo plano.",
+                "Parar Serviço Remoto",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning
+            );
+
+            if (confirm != MessageBoxResult.Yes) return;
+
+            try
+            {
+                IsLoadingServices = true;
+                ServicesStatusText = $"A parar serviço '{SelectedRemoteService.ServiceName}' no computador remoto...";
+                var req = new ServiceManagerPayload
+                {
+                    Action = ServiceManagerAction.StopRequest,
+                    TargetServiceName = SelectedRemoteService.ServiceName
+                };
+                var bytes = MessageSerializer.SerializeJson(req);
+                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+            }
+            catch (Exception ex)
+            {
+                IsLoadingServices = false;
+                ServicesStatusText = $"Falha ao enviar ordem de paragem: {ex.Message}";
+                AppLogger.LogError("ServiceManager", "Falha ao enviar ordem de paragem de serviço", ex);
+            }
+        }
+
+        public async void ChangeStartupTypeRemoteService()
+        {
+            if (SelectedRemoteService == null)
+            {
+                MessageBox.Show("Por favor selecione um serviço da lista para alterar o tipo de arranque.", "Serviços Remotos", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (_activeSession == null || !_activeSession.IsConnected)
+            {
+                MessageBox.Show("Sessão remota não está ativa.", "Serviços Remotos", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                IsLoadingServices = true;
+                ServicesStatusText = $"A alterar arranque de '{SelectedRemoteService.ServiceName}' para {SelectedNewStartupType}...";
+                var req = new ServiceManagerPayload
+                {
+                    Action = ServiceManagerAction.ChangeStartupTypeRequest,
+                    TargetServiceName = SelectedRemoteService.ServiceName,
+                    NewStartupType = SelectedNewStartupType
+                };
+                var bytes = MessageSerializer.SerializeJson(req);
+                await _activeSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+            }
+            catch (Exception ex)
+            {
+                IsLoadingServices = false;
+                ServicesStatusText = $"Falha ao alterar arranque: {ex.Message}";
+                AppLogger.LogError("ServiceManager", "Falha ao alterar tipo de arranque do serviço", ex);
             }
         }
 
@@ -2304,6 +2590,106 @@ namespace RotinaRemote.Client.ViewModels
                 return;
             }
 
+            if (frame.Channel == ChannelType.ServiceManager && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var svcPayload = MessageSerializer.DeserializeJson<ServiceManagerPayload>(frame.Payload);
+                    if (svcPayload != null && _incomingSession != null && _incomingSession.IsConnected)
+                    {
+                        if (svcPayload.Action == ServiceManagerAction.ListRequest)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    var list = RemoteServicesManager.GetServices();
+                                    var responsePayload = new ServiceManagerPayload
+                                    {
+                                        Action = ServiceManagerAction.ListResponse,
+                                        Services = list,
+                                        Success = true,
+                                        Message = $"Lista obtida: {list.Count} serviços encontrados."
+                                    };
+                                    var bytes = MessageSerializer.SerializeJson(responsePayload);
+                                    if (_incomingSession != null && _incomingSession.IsConnected)
+                                    {
+                                        await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    AppLogger.LogError("ServiceManager", "Host: Erro ao listar serviços remotos", ex);
+                                }
+                            });
+                        }
+                        else if (svcPayload.Action == ServiceManagerAction.StartRequest)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                var (ok, msg) = RemoteServicesManager.StartService(svcPayload.TargetServiceName);
+                                var responsePayload = new ServiceManagerPayload
+                                {
+                                    Action = ServiceManagerAction.StartResponse,
+                                    TargetServiceName = svcPayload.TargetServiceName,
+                                    Success = ok,
+                                    Message = msg
+                                };
+                                var bytes = MessageSerializer.SerializeJson(responsePayload);
+                                if (_incomingSession != null && _incomingSession.IsConnected)
+                                {
+                                    await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+                                }
+                            });
+                        }
+                        else if (svcPayload.Action == ServiceManagerAction.StopRequest)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                var (ok, msg) = RemoteServicesManager.StopService(svcPayload.TargetServiceName);
+                                var responsePayload = new ServiceManagerPayload
+                                {
+                                    Action = ServiceManagerAction.StopResponse,
+                                    TargetServiceName = svcPayload.TargetServiceName,
+                                    Success = ok,
+                                    Message = msg
+                                };
+                                var bytes = MessageSerializer.SerializeJson(responsePayload);
+                                if (_incomingSession != null && _incomingSession.IsConnected)
+                                {
+                                    await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+                                }
+                            });
+                        }
+                        else if (svcPayload.Action == ServiceManagerAction.ChangeStartupTypeRequest)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                var (ok, msg) = RemoteServicesManager.ChangeStartupType(svcPayload.TargetServiceName, svcPayload.NewStartupType);
+                                var responsePayload = new ServiceManagerPayload
+                                {
+                                    Action = ServiceManagerAction.ChangeStartupTypeResponse,
+                                    TargetServiceName = svcPayload.TargetServiceName,
+                                    NewStartupType = svcPayload.NewStartupType,
+                                    Success = ok,
+                                    Message = msg
+                                };
+                                var bytes = MessageSerializer.SerializeJson(responsePayload);
+                                if (_incomingSession != null && _incomingSession.IsConnected)
+                                {
+                                    await _incomingSession.SendFrameAsync(new PacketFrame(ChannelType.ServiceManager, 0, bytes));
+                                }
+                            });
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("ServiceManager", "Host: Erro ao processar frame de serviços do cliente", ex);
+                }
+                return;
+            }
+
             if (frame.Channel == ChannelType.Control && frame.Payload.Length > 0)
             {
                 try
@@ -3200,6 +3586,50 @@ namespace RotinaRemote.Client.ViewModels
                     AppLogger.LogError("ProcessManager", "Cliente: Erro ao processar resposta do gestor de processos", ex);
                 }
             }
+
+            if (frame.Channel == ChannelType.ServiceManager && frame.Payload.Length > 0)
+            {
+                try
+                {
+                    var svcPayload = MessageSerializer.DeserializeJson<ServiceManagerPayload>(frame.Payload);
+                    if (svcPayload != null)
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            if (svcPayload.Action == ServiceManagerAction.ListResponse)
+                            {
+                                RemoteServices.Clear();
+                                int runningCount = 0;
+                                if (svcPayload.Services != null)
+                                {
+                                    foreach (var item in svcPayload.Services)
+                                    {
+                                        RemoteServices.Add(item);
+                                        if (item.IsRunning) runningCount++;
+                                    }
+                                }
+                                TotalRemoteServicesCount = RemoteServices.Count;
+                                RunningRemoteServicesCount = runningCount;
+                                FilterServices();
+                                IsLoadingServices = false;
+                                ServicesStatusText = $"Atualizado com sucesso às {DateTime.Now:HH:mm:ss}. {RemoteServices.Count} serviços listados ({runningCount} em execução).";
+                            }
+                            else if (svcPayload.Action == ServiceManagerAction.StartResponse ||
+                                     svcPayload.Action == ServiceManagerAction.StopResponse ||
+                                     svcPayload.Action == ServiceManagerAction.ChangeStartupTypeResponse)
+                            {
+                                IsLoadingServices = false;
+                                ServicesStatusText = svcPayload.Message;
+                                RefreshRemoteServices();
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("ServiceManager", "Cliente: Erro ao processar resposta do gestor de serviços", ex);
+                }
+            }
         }
 
         private void OnSessionDisconnected()
@@ -3224,6 +3654,13 @@ namespace RotinaRemote.Client.ViewModels
 
         private void Disconnect()
         {
+            try
+            {
+                _servicesWindow?.Close();
+                _servicesWindow = null;
+            }
+            catch { }
+
             PrivacyScreenManager.Instance.Deactivate();
             IsRemotePrivacyModeActive = false;
             RemoteSessionSubTabIndex = 0;

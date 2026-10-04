@@ -145,5 +145,53 @@ namespace RotinaRemote.UnitTests
             Assert.NotNull(deserialized);
             Assert.Equal("Texto copiado para teste de clipboard", deserialized!.Text);
         }
+
+        [Fact]
+        public void ServiceManagerPayload_Serialization_ShouldRoundtrip()
+        {
+            var payload = new ServiceManagerPayload
+            {
+                Action = ServiceManagerAction.ListResponse,
+                TargetServiceName = "Spooler",
+                NewStartupType = "Automático",
+                Success = true,
+                Message = "Operação concluída com sucesso.",
+                Services = new System.Collections.Generic.List<RemoteServiceItem>
+                {
+                    new RemoteServiceItem
+                    {
+                        ServiceName = "Spooler",
+                        DisplayName = "Spooler de Impressão",
+                        Status = "Em Execução",
+                        StartupType = "Automático",
+                        CanStop = true,
+                        CanStart = false
+                    },
+                    new RemoteServiceItem
+                    {
+                        ServiceName = "wuauserv",
+                        DisplayName = "Windows Update",
+                        Status = "Parado",
+                        StartupType = "Manual",
+                        CanStop = false,
+                        CanStart = true
+                    }
+                }
+            };
+
+            var bytes = MessageSerializer.SerializeJson(payload);
+            Assert.NotNull(bytes);
+
+            var deserialized = MessageSerializer.DeserializeJson<ServiceManagerPayload>(bytes);
+            Assert.NotNull(deserialized);
+            Assert.Equal(ServiceManagerAction.ListResponse, deserialized!.Action);
+            Assert.Equal("Spooler", deserialized.TargetServiceName);
+            Assert.Equal("Automático", deserialized.NewStartupType);
+            Assert.True(deserialized.Success);
+            Assert.Equal(2, deserialized.Services.Count);
+            Assert.Equal("Spooler de Impressão", deserialized.Services[0].DisplayName);
+            Assert.True(deserialized.Services[0].IsRunning);
+            Assert.False(deserialized.Services[1].IsRunning);
+        }
     }
 }

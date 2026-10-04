@@ -11,7 +11,8 @@ namespace RotinaRemote.Protocol
         File = 0x03,
         Clipboard = 0x04,
         Chat = 0x05,
-        ProcessManager = 0x06
+        ProcessManager = 0x06,
+        ServiceManager = 0x07
     }
 
     public class PacketFrame
