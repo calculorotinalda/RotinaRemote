@@ -100,12 +100,69 @@
                       AutoGenerateColumns="False" 
                       IsReadOnly="True"
                       SelectionMode="Single"
+                      SelectionUnit="FullRow"
                       Background="Transparent" 
                       Foreground="{DynamicResource TextPrimary}" 
                       RowBackground="{DynamicResource SecondaryBackground}"
                       BorderThickness="0"
                       GridLinesVisibility="Horizontal"
                       HorizontalGridLinesBrush="{DynamicResource BorderColor}">
+
+                <DataGrid.Resources>
+                    <!-- Cores de seleção do sistema substituídas por azul claro (#38BDF8) -->
+                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#38BDF8" />
+                    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0F172A" />
+                    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#7DD3FC" />
+                    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#0F172A" />
+                </DataGrid.Resources>
+
+                <!-- Estilo da linha (DataGridRow): Fundo azul claro ao selecionar -->
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Height" Value="32" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#38BDF8" />
+                                <Setter Property="Foreground" Value="#0F172A" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True" />
+                                    <Condition Property="Selector.IsSelectionActive" Value="False" />
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" Value="#7DD3FC" />
+                                <Setter Property="Foreground" Value="#0F172A" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </MultiTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <!-- Estilo da célula (DataGridCell): Mantém o fundo transparente para exibir o azul claro contínuo da linha -->
+                <DataGrid.CellStyle>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="8,4" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="DataGridCell">
+                                    <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter VerticalAlignment="Center" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Foreground" Value="#0F172A" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.CellStyle>
                 <DataGrid.Columns>
                     <!-- Nome do Serviço -->
                     <DataGridTextColumn Header="Nome do Serviço" Binding="{Binding ServiceName}" Width="200">
