@@ -93,6 +93,10 @@ namespace RotinaRemote.Input
         private static int _lastRightClickX = -1;
         private static int _lastRightClickY = -1;
 
+        public static Action? OnMinimizeRequested;
+        public static Action? OnMaximizeRequested;
+        public static Func<IntPtr>? GetMainWindowHandle;
+
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
@@ -149,6 +153,12 @@ namespace RotinaRemote.Input
 
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetCapture();
 
         private const int SW_MINIMIZE = 6;
         private const int SW_MAXIMIZE = 3;
@@ -454,29 +464,40 @@ namespace RotinaRemote.Input
 
                 if (clickFlags != 0)
                 {
-                    // Canal 1: SendInput atómico:
-                    // inputs[0]: Posiciona o cursor nas coordenadas exatas
-                    // inputs[1]: Dispara o clique sem flag MOVE para não gerar cancelamento de clique por arrasto em botões de título (minimizar/maximizar)
-                    uint clickDwFlags = clickFlags | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
-
-                    var inputs = new INPUT[2];
-                    inputs[0] = new INPUT
+                    // Se o utilizador clicou diretamente num botão de título (Minimizar, Maximizar, Fechar),
+                    // processa a ação imediatamente via comando Win32 do sistema, evitando que o Windows
+                    // entre num modal tracking loop (WM_NCLBUTTONDOWN) que bloqueia a janela e o rato.
+                    if (HandleNonClientButtons(type, targetX, targetY))
                     {
-                        type = INPUT_MOUSE,
-                        U = new InputUnion
+                        return;
+                    }
+
+                    // Se for clique inicial (LeftDown), ativa e foca a janela sob o cursor se necessário
+                    if (type == MouseEventType.LeftDown)
+                    {
+                        try
                         {
-                            mi = new MOUSEINPUT
+                            var pt = new POINT { x = targetX, y = targetY };
+                            IntPtr hwnd = WindowFromPoint(pt);
+                            if (hwnd != IntPtr.Zero)
                             {
-                                dx = absX,
-                                dy = absY,
-                                mouseData = 0,
-                                dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
-                                time = 0,
-                                dwExtraInfo = IntPtr.Zero
+                                IntPtr root = GetAncestor(hwnd, GA_ROOT);
+                                IntPtr targetWnd = root != IntPtr.Zero ? root : hwnd;
+                                IntPtr fg = GetForegroundWindow();
+                                if (targetWnd != fg)
+                                {
+                                    SetForegroundWindow(targetWnd);
+                                }
                             }
                         }
-                    };
-                    inputs[1] = new INPUT
+                        catch { }
+                    }
+
+                    // Canal 1: SendInput atómico com flag MOVE para garantir que as coordenadas absolutas (absX, absY)
+                    // são aplicadas e vinculadas diretamente ao evento de premir/libertar o botão do rato.
+                    uint clickDwFlags = clickFlags | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+
+                    var input = new INPUT
                     {
                         type = INPUT_MOUSE,
                         U = new InputUnion
@@ -493,21 +514,26 @@ namespace RotinaRemote.Input
                         }
                     };
 
-                    uint sent = SendInput(2, inputs, Marshal.SizeOf(typeof(INPUT)));
+                    uint sent = SendInput(1, new[] { input }, Marshal.SizeOf(typeof(INPUT)));
                     if (sent >= 1)
                     {
                         AppLogger.LogInfo("RemoteSession", $"[HOST SUCCESS] SendInput disparado com SUCESSO para {type} em ({targetX}, {targetY}) [abs: {absX}, {absY}].");
                     }
                     else
                     {
-                        // Canal 2: mouse_event fallback caso SendInput seja bloqueado por privilégios/UIPI
                         int err = Marshal.GetLastWin32Error();
                         AppLogger.LogWarning("RemoteSession", $"[HOST FALLBACK] SendInput retornou 0 para {type} em ({targetX}, {targetY}) [Win32={err}]. Usando mouse_event...");
                         try
                         {
-                            mouse_event(clickFlags, 0, 0, 0, UIntPtr.Zero);
+                            mouse_event(clickDwFlags, (uint)absX, (uint)absY, 0, UIntPtr.Zero);
                         }
                         catch { }
+                    }
+
+                    // Ao soltar o botão do rato, libertar qualquer captura retida para evitar que a sessão bloqueie cliques
+                    if (type == MouseEventType.LeftUp || type == MouseEventType.RightUp || type == MouseEventType.MiddleUp)
+                    {
+                        ReleaseCapture();
                     }
                 }
             }
@@ -515,6 +541,119 @@ namespace RotinaRemote.Input
             {
                 AppLogger.LogError("RemoteSession", $"[HOST EXCEPTION] Erro ao injetar evento de rato {type}", ex);
             }
+        }
+
+        private static bool HandleNonClientButtons(MouseEventType type, int targetX, int targetY)
+        {
+            try
+            {
+                var pt = new POINT { x = targetX, y = targetY };
+                IntPtr hwnd = WindowFromPoint(pt);
+                if (hwnd == IntPtr.Zero) return false;
+
+                IntPtr root = GetAncestor(hwnd, GA_ROOT);
+                IntPtr targetWnd = root != IntPtr.Zero ? root : hwnd;
+
+                // Coordenadas empacotadas para WM_NCHITTEST: palavra baixa é x, palavra alta é y
+                int packed = ((int)(ushort)targetX) | (((int)(ushort)targetY) << 16);
+                IntPtr lParam = (IntPtr)packed;
+                IntPtr hitTest = SendMessage(targetWnd, WM_NCHITTEST, IntPtr.Zero, lParam);
+                int hit = hitTest.ToInt32();
+
+                // Fallback de deteção geométrica caso WM_NCHITTEST não devolva o botão diretamente
+                if (hit != HTMINBUTTON && hit != HTMAXBUTTON && hit != HTCLOSE)
+                {
+                    if (GetWindowRect(targetWnd, out RECT wRect))
+                    {
+                        int top = wRect.Top;
+                        int right = wRect.Right;
+                        if (targetY >= top && targetY <= top + 45)
+                        {
+                            if (targetX >= right - 50 && targetX <= right)
+                            {
+                                hit = HTCLOSE;
+                            }
+                            else if (targetX >= right - 100 && targetX < right - 50)
+                            {
+                                hit = HTMAXBUTTON;
+                            }
+                            else if (targetX >= right - 150 && targetX < right - 100)
+                            {
+                                hit = HTMINBUTTON;
+                            }
+                        }
+                    }
+                }
+
+                GetWindowThreadProcessId(targetWnd, out uint winPid);
+                bool isOurApp = (winPid == (uint)Environment.ProcessId) ||
+                                (GetMainWindowHandle != null && targetWnd == GetMainWindowHandle());
+
+                if (hit == HTMINBUTTON)
+                {
+                    if (type == MouseEventType.LeftUp)
+                    {
+                        AppLogger.LogInfo("InputInjector", $"[TITLE BUTTON] Minimize button clicado na janela {targetWnd} (isOurApp={isOurApp}). Executando SC_MINIMIZE...");
+                        ReleaseCapture();
+                        PostMessage(targetWnd, WM_SYSCOMMAND, SC_MINIMIZE, IntPtr.Zero);
+                        ShowWindow(targetWnd, SW_MINIMIZE);
+
+                        if (isOurApp)
+                        {
+                            OnMinimizeRequested?.Invoke();
+                        }
+                    }
+                    else if (type == MouseEventType.LeftDown)
+                    {
+                        ReleaseCapture();
+                        SetForegroundWindow(targetWnd);
+                    }
+                    return true;
+                }
+                else if (hit == HTMAXBUTTON)
+                {
+                    if (type == MouseEventType.LeftUp)
+                    {
+                        AppLogger.LogInfo("InputInjector", $"[TITLE BUTTON] Maximize/Restore button clicado na janela {targetWnd} (isOurApp={isOurApp}).");
+                        ReleaseCapture();
+                        bool zoomed = IsZoomed(targetWnd);
+                        IntPtr cmd = zoomed ? SC_RESTORE : SC_MAXIMIZE;
+                        PostMessage(targetWnd, WM_SYSCOMMAND, cmd, IntPtr.Zero);
+                        ShowWindow(targetWnd, zoomed ? SW_RESTORE : SW_MAXIMIZE);
+
+                        if (isOurApp)
+                        {
+                            OnMaximizeRequested?.Invoke();
+                        }
+                    }
+                    else if (type == MouseEventType.LeftDown)
+                    {
+                        ReleaseCapture();
+                        SetForegroundWindow(targetWnd);
+                    }
+                    return true;
+                }
+                else if (hit == HTCLOSE)
+                {
+                    if (type == MouseEventType.LeftUp)
+                    {
+                        AppLogger.LogInfo("InputInjector", $"[TITLE BUTTON] Close button clicado na janela {targetWnd}.");
+                        ReleaseCapture();
+                        PostMessage(targetWnd, WM_SYSCOMMAND, SC_CLOSE, IntPtr.Zero);
+                    }
+                    else if (type == MouseEventType.LeftDown)
+                    {
+                        ReleaseCapture();
+                        SetForegroundWindow(targetWnd);
+                    }
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.LogError("InputInjector", "Erro em HandleNonClientButtons", ex);
+            }
+            return false;
         }
 
         public static void InjectKeyboard(KeyEventType type, ushort virtualKeyCode)

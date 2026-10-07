@@ -968,6 +968,54 @@ namespace RotinaRemote.Client.ViewModels
 
             SaveSettingsCommand = new RelayCommand(SaveSettings);
             ToggleThemeCommand = new RelayCommand(ToggleTheme);
+
+            InputInjector.GetMainWindowHandle = () =>
+            {
+                try
+                {
+                    var mainWin = System.Windows.Application.Current?.MainWindow;
+                    if (mainWin != null)
+                    {
+                        return new System.Windows.Interop.WindowInteropHelper(mainWin).Handle;
+                    }
+                }
+                catch { }
+                return IntPtr.Zero;
+            };
+
+            InputInjector.OnMinimizeRequested = () =>
+            {
+                System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        var mainWin = System.Windows.Application.Current?.MainWindow;
+                        if (mainWin != null)
+                        {
+                            mainWin.WindowState = System.Windows.WindowState.Minimized;
+                        }
+                    }
+                    catch { }
+                });
+            };
+
+            InputInjector.OnMaximizeRequested = () =>
+            {
+                System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        var mainWin = System.Windows.Application.Current?.MainWindow;
+                        if (mainWin != null)
+                        {
+                            mainWin.WindowState = mainWin.WindowState == System.Windows.WindowState.Maximized
+                                ? System.Windows.WindowState.Normal
+                                : System.Windows.WindowState.Maximized;
+                        }
+                    }
+                    catch { }
+                });
+            };
             InstallServiceCommand = new RelayCommand(InstallService);
             StartServiceCommand = new RelayCommand(StartService);
             StopServiceCommand = new RelayCommand(StopService);
@@ -1174,6 +1222,19 @@ namespace RotinaRemote.Client.ViewModels
                 OnPropertyChanged(nameof(HasActiveIncomingConnection));
                 OnPropertyChanged(nameof(IsNoIncomingConnectionActive));
                 OnPropertyChanged(nameof(ActiveIncomingConnectionsCount));
+
+                System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        var mainWin = System.Windows.Application.Current.MainWindow;
+                        if (mainWin != null && mainWin.WindowState == System.Windows.WindowState.Minimized)
+                        {
+                            mainWin.WindowState = System.Windows.WindowState.Normal;
+                        }
+                    }
+                    catch { }
+                });
             }
             catch (Exception ex)
             {
@@ -2105,6 +2166,15 @@ namespace RotinaRemote.Client.ViewModels
                             {
                                 ConnectionStatus = "Pronto";
                                 RefreshConnectionsState();
+                                try
+                                {
+                                    var mainWin = System.Windows.Application.Current.MainWindow;
+                                    if (mainWin != null && mainWin.WindowState == System.Windows.WindowState.Minimized)
+                                    {
+                                        mainWin.WindowState = System.Windows.WindowState.Normal;
+                                    }
+                                }
+                                catch { }
                             });
                         };
 
@@ -2378,6 +2448,15 @@ namespace RotinaRemote.Client.ViewModels
                         {
                             ConnectionStatus = "Pronto";
                             RefreshConnectionsState();
+                            try
+                            {
+                                var mainWin = System.Windows.Application.Current.MainWindow;
+                                if (mainWin != null && mainWin.WindowState == System.Windows.WindowState.Minimized)
+                                {
+                                    mainWin.WindowState = System.Windows.WindowState.Normal;
+                                }
+                            }
+                            catch { }
                         });
                     };
                     ConnectionStatus = "Sessão Ativa com " + resolvedId;
@@ -2904,6 +2983,24 @@ namespace RotinaRemote.Client.ViewModels
             _streamingCts?.Cancel();
             _streamingCts = new CancellationTokenSource();
             var token = _streamingCts.Token;
+
+            // Minimizar a janela principal do anfitrião para que o ambiente de trabalho fique desobstruído para o técnico
+            System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    var mainWin = System.Windows.Application.Current.MainWindow;
+                    if (mainWin != null && mainWin.WindowState != System.Windows.WindowState.Minimized)
+                    {
+                        mainWin.WindowState = System.Windows.WindowState.Minimized;
+                        AppLogger.LogInfo("RemoteSession", "[HOST] Janela principal do RotinaRemote minimizada automaticamente ao iniciar a sessão de assistência remota.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.LogError("RemoteSession", "Erro ao auto-minimizar janela principal do anfitrião", ex);
+                }
+            });
 
             if (_incomingClientScreenWidth > 0 && _incomingClientScreenHeight > 0)
             {

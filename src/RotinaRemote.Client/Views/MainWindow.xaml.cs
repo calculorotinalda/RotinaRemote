@@ -23,6 +23,18 @@ namespace RotinaRemote.Client.Views
                 {
                     RemoteScreenImage.ReleaseMouseCapture();
                 }
+                _isClientMouseDown = false;
+            };
+            RemoteScreenImage.LostMouseCapture += (s, e) =>
+            {
+                _isClientMouseDown = false;
+            };
+            RemoteScreenImage.MouseLeave += (s, e) =>
+            {
+                if (!_isClientMouseDown && RemoteScreenImage.IsMouseCaptured)
+                {
+                    RemoteScreenImage.ReleaseMouseCapture();
+                }
             };
         }
 
